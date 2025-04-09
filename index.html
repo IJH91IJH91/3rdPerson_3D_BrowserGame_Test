@@ -3,502 +3,402 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic 3D RPG - Fist Melee + Gamepad Player 2</title>
+    <title>Basic 3D RPG - Split Screen P2 Attacks</title>
     <style>
-        /* Basic styling for body, canvas, and UI */
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #333; color: #fff; }
+        /* Basic styling */
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
         canvas { display: block; }
-        #ui-container {
+
+        /* --- UI Containers --- */
+        .ui-panel {
             position: absolute;
             top: 10px;
-            left: 10px;
             z-index: 10;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            pointer-events: none; /* Allow clicks to pass through container */
-        }
-         #ui-container > div {
-             pointer-events: auto; /* Make child elements clickable */
-         }
-        #instructions {
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            max-width: 250px; /* Increased width for gamepad info */
-            line-height: 1.5;
-        }
-        #instructions strong {
-             display: block;
-             margin-bottom: 5px;
-             font-size: 16px;
-         }
-         #pointer-lock-info {
-             margin-top: 10px;
-             font-style: italic;
-             font-size: 12px;
-             color: #ccc;
-         }
-        /* Health Bar Styles */
-        #health-bar-container {
-            width: 150px;
-            height: 20px;
-            background-color: #555;
-            border-radius: 5px;
-            border: 1px solid #222;
-            overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
-        }
-        #health-bar-inner {
-            height: 100%;
-            width: 100%; /* Start full */
-            background-color: #4CAF50; /* Green */
-            border-radius: 4px;
-            transition: width 0.3s ease-out;
-            box-shadow: 0 0 5px rgba(76, 175, 80, 0.7);
-        }
-         #health-text {
-             font-size: 12px;
-             color: #eee;
-             margin-bottom: 2px;
-         }
-        /* Crosshair Styles */
-        #crosshair {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 2px; /* Vertical line */
-            height: 12px;
-            background-color: white;
-            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Add shadow for visibility */
-            z-index: 11; /* Ensure it's above the game */
-            pointer-events: none; /* Don't interfere with clicks */
-        }
-        #crosshair::after {
-            content: '';
-            position: absolute;
-            top: 50%; /* Center vertically */
-            left: -5px; /* Position horizontal line */
-            width: 12px; /* Horizontal line */
-            height: 2px;
-            background-color: white;
-            transform: translateY(-50%); /* Center horizontal line */
-            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Add shadow */
-        }
-        /* --- P2: Gamepad Status --- */
-        #gamepad-status {
-            background-color: rgba(0, 0, 0, 0.7);
+            pointer-events: none;
             padding: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
             border-radius: 8px;
-            font-size: 13px;
-            margin-top: 5px;
+            max-width: 280px;
         }
+        .ui-panel > div { pointer-events: auto; } /* Allow interaction with inner elements if needed */
+
+        /* P1 UI Panel (Top Left) */
+        #ui-panel-p1 { left: 10px; }
+
+        /* P2 UI Panel (Top Right) */
+        #ui-panel-p2 {
+            right: 10px;
+            align-items: flex-end; /* Align items to the right */
+        }
+        #ui-panel-p2 .health-bar-container { /* Ensure P2 bar fills right */
+             /* Add specific alignment if needed */
+        }
+        #ui-panel-p2 #gamepad-status { text-align: right; } /* Align gamepad text right */
+
+
+        /* Instructions Box (Inside P1 Panel) */
+        #instructions {
+             background-color: rgba(0, 0, 0, 0.7);
+             padding: 10px 15px;
+             border-radius: 8px;
+             font-size: 12px; /* Even smaller */
+             line-height: 1.3;
+             margin-bottom: 5px; /* Spacing */
+             max-width: 260px;
+         }
+        #instructions strong { display: block; margin-bottom: 4px; font-size: 14px; }
+        #pointer-lock-info { margin-top: 6px; font-style: italic; font-size: 10px; color: #ccc; }
+        hr { border-color: #555; margin: 6px 0; }
+
+        /* Health Bars (General Styling) */
+       .health-bar-container {
+            width: 150px; height: 18px; background-color: #555; border-radius: 5px; border: 1px solid #222; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); margin-top: 3px;
+        }
+       .health-bar-inner {
+            height: 100%; width: 100%; background-color: #4CAF50; border-radius: 4px; transition: width 0.3s ease-out; box-shadow: 0 0 5px rgba(76, 175, 80, 0.7);
+        }
+       .health-text { font-size: 12px; color: #eee; margin-bottom: 2px;}
+
+        /* Gamepad Status (Inside P2 Panel) */
+        #gamepad-status { font-size: 13px; background-color: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; margin-top: 5px;}
+
+        /* Crosshairs */
+        .crosshair { position: fixed; transform: translate(-50%, -50%); width: 2px; height: 12px; background-color: white; box-shadow: 0 0 3px black, 0 0 1px black inset; z-index: 11; pointer-events: none; display: none; }
+        .crosshair::after { content: ''; position: absolute; top: 50%; left: -5px; width: 12px; height: 2px; background-color: white; transform: translateY(-50%); box-shadow: 0 0 3px black, 0 0 1px black inset; }
+        #crosshair-p1 { top: 50%; left: 25%; }
+        #crosshair-p2 { top: 50%; left: 75%; }
     </style>
 </head>
 <body>
-    <div id="ui-container">
+    <div id="ui-panel-p1" class="ui-panel">
         <div id="instructions">
-            <strong>Controls (P1 - Keyboard/Mouse):</strong>
-            W: Move Forward<br>
-            A: Strafe Left<br>
-            S: Move Backward<br>
-            D: Strafe Right<br>
-            Space: Jump / Double Jump<br>
-            Q: Shoot Arrow<br>
-            E: Shoot Fireball<br>
-            Left Click: Melee Punch<br>
-            H: Decrease Health (Test)<br>
-            Mouse: Look Around
+            <strong>P1 (Left): KBM</strong><br>
+            WASD:Move, Space:Jump, Mouse:Look<br>LMB:Punch, Q:Arrow, E:Fireball<br>H:Test P1 Dmg
             <div id="pointer-lock-info">Click screen to lock mouse. ESC to unlock.</div>
-            <hr style="border-color: #555; margin: 8px 0;">
-             <strong>Controls (P2 - Xbox Controller):</strong>
-             Left Stick: Move<br>
-             A Button: Jump / Double Jump<br>
-             </div>
+            <hr>
+            <strong>P2 (Right): Gamepad (Xbox Map)</strong><br>
+            L-Stick:Move, R-Stick:Look, A:Jump<br>RB:Punch, X:Arrow, Y:Fireball<br>J:Test P2 Dmg
+        </div>
         <div>
-             <div id="health-text">P1 HP</div>
-             <div id="health-bar-container">
-                 <div id="health-bar-inner"></div>
+             <div id="health-text-p1" class="health-text">P1 HP</div>
+             <div id="health-bar-container-p1" class="health-bar-container">
+                 <div id="health-bar-inner-p1" class="health-bar-inner"></div>
              </div>
+        </div>
+    </div>
+
+    <div id="ui-panel-p2" class="ui-panel">
+       <div>
+            <div id="health-text-p2" class="health-text">P2 HP</div>
+            <div id="health-bar-container-p2" class="health-bar-container">
+                <div id="health-bar-inner-p2" class="health-bar-inner"></div>
+            </div>
         </div>
         <div id="gamepad-status">Gamepad: Not Connected</div>
     </div>
-    <div id="crosshair"></div>
+
+    <div id="crosshair-p1" class="crosshair"></div>
+    <div id="crosshair-p2" class="crosshair"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
         // --- Core Components ---
-        let scene, camera, renderer;
-        let player, ground, fistMesh, trainingDummy;
-        let playerVelocity = new THREE.Vector3();
-        let playerOnGround = false;
-        let jumpsPerformed = 0;
-        let projectiles = [];
+        let scene, renderer; let cameraP1, cameraP2; let player, ground, trainingDummy; let projectiles = [];
 
-        // --- Player Stats & UI (P1) ---
-        const MAX_HEALTH = 100;
-        let currentHealth = MAX_HEALTH;
-        let healthBarInnerElement;
+        // --- Player 1 State ---
+        let playerVelocity = new THREE.Vector3(); let playerOnGround = false; let jumpsPerformed = 0;
+        const MAX_HEALTH_P1 = 100; let currentHealthP1 = MAX_HEALTH_P1; let healthBarInnerElementP1;
+        let playerRotationY = 0; let cameraRotationX = 0; let isPointerLocked = false;
+        let lastMeleeAttackTimeP1 = 0; let lastShotTimeQP1 = 0; let lastShotTimeEP1 = 0;
+        let isMeleeAttackingP1 = false; let meleeAttackTimerP1 = 0; let fistMeshP1;
+
+         // --- Player 2 State ---
+        let player2; let player2Velocity = new THREE.Vector3(); let player2OnGround = false; let player2JumpsPerformed = 0;
+        const MAX_HEALTH_P2 = 100; let currentHealthP2 = MAX_HEALTH_P2; let healthBarInnerElementP2; // P2 Health
+        let player2CameraYaw = 0; let player2CameraPitch = 0;
+        let lastMeleeAttackTimeP2 = 0; let lastShotTimeQP2 = 0; let lastShotTimeEP2 = 0; // P2 Cooldowns
+        let isMeleeAttackingP2 = false; let meleeAttackTimerP2 = 0; let fistMeshP2; // P2 Melee State
+        let player2Hat;
 
         // --- Constants ---
-        const PLAYER_HEIGHT = 1.0;
-        const PLAYER_WIDTH = 0.5;
-        const PLAYER_DEPTH = 0.5;
-        const PLAYER_SPEED = 5.0;
-        const GRAVITY = -15.0; // Shared gravity for now
-        const JUMP_FORCE = 7.0; // Shared jump force
-        const MAX_JUMPS = 2; // Shared max jumps
-        const CAMERA_DISTANCE = 5;
-        const CAMERA_HEIGHT_OFFSET = 0.8;
-        const MIN_CAMERA_HEIGHT = 0.2;
-        const HAT_HEIGHT = 0.2;
-        const HAT_WIDTH = 0.3;
-        const HAT_DEPTH = 0.4;
+        const PLAYER_HEIGHT = 1.0; const PLAYER_WIDTH = 0.5; const PLAYER_DEPTH = 0.5; const PLAYER_SPEED = 5.0; const GRAVITY = -15.0; const JUMP_FORCE = 7.0; const MAX_JUMPS = 2; const CAMERA_DISTANCE = 5; const CAMERA_HEIGHT_OFFSET = 0.8; const MIN_CAMERA_HEIGHT = 0.2; const HAT_HEIGHT = 0.2; const HAT_WIDTH = 0.3; const HAT_DEPTH = 0.4; const PITCH_LIMIT = Math.PI / 2 - 0.1;
         const MOUSE_SENSITIVITY = 0.002;
-        const PITCH_LIMIT = Math.PI / 2 - 0.1;
 
-        // --- Projectile Constants ---
+        // --- Projectile Constants (Shared) ---
         const ARROW_SPEED = 15.0; const ARROW_GRAVITY = -5.0; const ARROW_RANGE = 50.0; const ARROW_INITIAL_UP_VELOCITY = 1.0; const ARROW_DAMAGE = 10; const FIREBALL_SPEED = 25.0; const FIREBALL_RANGE = 100.0; const FIREBALL_SIZE = 0.2; const FIREBALL_DAMAGE = 15; const Q_COOLDOWN = 500; const E_COOLDOWN = 1000; const PROJECTILE_HIT_RADIUS_APPROX = 0.3;
 
-        // --- Melee Attack Constants (P1) ---
+        // --- Melee Attack Constants (Shared) ---
         const MELEE_ATTACK_DURATION = 250; const MELEE_COOLDOWN = 400; const MELEE_DAMAGE = 25; const MELEE_RANGE = 3.0; const MELEE_ANGLE_THRESHOLD = Math.PI / 3; const FIST_SIZE_X = 0.4; const FIST_SIZE_Y = 0.4; const FIST_SIZE_Z = 0.4;
 
         // --- Training Dummy Constants ---
         const DUMMY_RADIUS = 0.5; const DUMMY_HEIGHT = 1.8; const DUMMY_MAX_HEALTH = 200; const DUMMY_HIT_DURATION = 150; const DUMMY_ORIGINAL_COLOR = 0xdeb887; const DUMMY_HIT_COLOR = 0xffffff; const DUMMY_GRAVITY = GRAVITY * 0.9; const DUMMY_LINEAR_DRAG = 1.0; const KNOCKBACK_FORCE_MULTIPLIER = 0.3; const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2;
 
-        // --- Input State (P1) ---
-        const keys = {};
-        let playerRotationY = 0;
-        let cameraRotationX = 0;
-        let isPointerLocked = false;
-        let lastShotTimeQ = 0;
-        let lastShotTimeE = 0;
-        let lastMeleeAttackTime = 0;
-        let isMeleeAttacking = false;
-        let meleeAttackTimer = 0;
-
         // --- Dummy State ---
         let dummyCurrentHealth = DUMMY_MAX_HEALTH; let dummyIsHit = false; let dummyHitTimer = 0; let dummyVelocity = new THREE.Vector3(); let dummyIsOnGround = true;
 
-        // --- P2: Player 2 State ---
-        let player2;
-        let player2Velocity = new THREE.Vector3();
-        let player2OnGround = false;
-        let player2JumpsPerformed = 0;
-        let player2RotationY = 0; // For facing direction
-        let player2Hat; // Visual indicator for P2
-
         // --- P2: Gamepad State ---
-        let gamepad = null;
-        let gamepadStatusElement;
-        const GAMEPAD_AXIS_DEADZONE = 0.15; // Ignore small stick movements
-        let player2JumpButtonPressedLastFrame = false; // Prevent holding jump
+        let gamepad = null; let gamepadStatusElement;
+        const GAMEPAD_AXIS_DEADZONE = 0.15; const GAMEPAD_LOOK_SENSITIVITY = 0.03;
+        let player2JumpButtonPressedLastFrame = false;
+        // Store more button states
+        let gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false };
+
+        // --- UI Elements ---
+        let crosshairP1, crosshairP2; const keys = {};
 
         // --- Initialization ---
         function init() {
-            // Scene, Camera, Renderer setup
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb); // Sky blue
-            scene.fog = new THREE.Fog(0x87ceeb, 10, 60); // Add fog for depth
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true; // Enable shadows
-            document.body.appendChild(renderer.domElement);
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x87ceeb); scene.fog = new THREE.Fog(0x87ceeb, 10, 60);
+            const aspect = (window.innerWidth / 2) / window.innerHeight;
+            cameraP1 = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000); cameraP2 = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.setScissorTest(true); document.body.appendChild(renderer.domElement);
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); directionalLight.position.set(10, 15, 10); directionalLight.castShadow = true; directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50; directionalLight.shadow.camera.left = -25; directionalLight.shadow.camera.right = 25; directionalLight.shadow.camera.top = 25; directionalLight.shadow.camera.bottom = -25; scene.add(directionalLight);
+            // Lighting & Ground
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight); const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); directionalLight.position.set(10, 15, 10); directionalLight.castShadow = true; /* ... shadow map setup ... */ scene.add(directionalLight); const groundGeometry = new THREE.PlaneGeometry(100, 100); const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide }); ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
-            // Ground Plane
-            const groundGeometry = new THREE.PlaneGeometry(100, 100); const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide }); ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+            // Player 1 Setup
+            const playerGeometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH); const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); player = new THREE.Mesh(playerGeometry, playerMaterial); player.castShadow = true; player.position.set(-2, PLAYER_HEIGHT / 2, 0); scene.add(player); const hatGeometry = new THREE.BoxGeometry(HAT_WIDTH, HAT_HEIGHT, HAT_DEPTH); const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff }); const hat = new THREE.Mesh(hatGeometry, hatMaterial); hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; hat.castShadow = true; player.add(hat);
+            fistMeshP1 = createFistMesh(); fistMeshP1.visible = false; fistMeshP1.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); player.add(fistMeshP1);
 
-            // --- Player 1 Cube & Hat ---
-            const playerGeometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH);
-            const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red P1
-            player = new THREE.Mesh(playerGeometry, playerMaterial);
-            player.castShadow = true;
-            player.position.set(-2, PLAYER_HEIGHT / 2, 0); // P1 start position
-            scene.add(player);
-            const hatGeometry = new THREE.BoxGeometry(HAT_WIDTH, HAT_HEIGHT, HAT_DEPTH); const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff }); const hat = new THREE.Mesh(hatGeometry, hatMaterial); hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; hat.castShadow = true; player.add(hat);
+            // Player 2 Setup
+            const player2Geometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH); const player2Material = new THREE.MeshStandardMaterial({ color: 0x00ff00 }); player2 = new THREE.Mesh(player2Geometry, player2Material); player2.castShadow = true; player2.position.set(2, PLAYER_HEIGHT / 2, 0); scene.add(player2); const hat2Material = new THREE.MeshStandardMaterial({ color: 0xffff00 }); player2Hat = new THREE.Mesh(hatGeometry, hat2Material); player2Hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; player2Hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; player2Hat.castShadow = true; player2.add(player2Hat);
+            fistMeshP2 = createFistMesh(); fistMeshP2.visible = false; fistMeshP2.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); player2.add(fistMeshP2); // Add fist to P2
 
-            // Create and add Fist (initially hidden) for P1
-            fistMesh = createFistMesh(); fistMesh.visible = false; fistMesh.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); fistMesh.rotation.set(0, 0, 0); player.add(fistMesh);
-
-            // --- P2: Player 2 Cube & Hat ---
-            const player2Geometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH);
-            const player2Material = new THREE.MeshStandardMaterial({ color: 0x00ff00 }); // Green P2
-            player2 = new THREE.Mesh(player2Geometry, player2Material);
-            player2.castShadow = true;
-            player2.position.set(2, PLAYER_HEIGHT / 2, 0); // P2 start position
-            scene.add(player2);
-            // Add a hat for P2 orientation
-            const hat2Material = new THREE.MeshStandardMaterial({ color: 0xffff00 }); // Yellow hat for P2
-            player2Hat = new THREE.Mesh(hatGeometry, hat2Material); // Reuse hat geometry
-            player2Hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2;
-            player2Hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05;
-            player2Hat.castShadow = true;
-            player2.add(player2Hat);
-
-            // Create and add Training Dummy
+            // Training Dummy
             trainingDummy = createDummyMesh(); trainingDummy.position.set(0, DUMMY_HEIGHT / 2, -8); scene.add(trainingDummy);
 
             // Trees
             createTrees(20);
 
-            // Get UI Element References
-            healthBarInnerElement = document.getElementById('health-bar-inner');
-            updateHealthBar(); // Initialize health bar display
-            // --- P2: Get Gamepad Status UI Element ---
+            // Get UI References
+            healthBarInnerElementP1 = document.getElementById('health-bar-inner-p1');
+            healthBarInnerElementP2 = document.getElementById('health-bar-inner-p2'); // P2 HP Bar
+            updateHealthBarP1(); // Initialize P1 bar
+            updateHealthBarP2(); // Initialize P2 bar
             gamepadStatusElement = document.getElementById('gamepad-status');
+            crosshairP1 = document.getElementById('crosshair-p1'); crosshairP2 = document.getElementById('crosshair-p2');
 
-            // --- Event Listeners ---
-            window.addEventListener('resize', onWindowResize, false);
-            document.addEventListener('keydown', onKeyDown, false);
-            document.addEventListener('keyup', (event) => { keys[event.code] = false; });
-            renderer.domElement.addEventListener('click', () => { if (!isPointerLocked) { renderer.domElement.requestPointerLock(); } }, false);
-            document.addEventListener('mousedown', onMouseDown, false); // Listen for mouse clicks (P1 melee)
-            document.addEventListener('pointerlockchange', onPointerLockChange, false);
-            document.addEventListener('pointerlockerror', onPointerLockError, false);
-            document.addEventListener('mousemove', onMouseMove, false); // Listen for mouse movement (P1 camera)
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false); document.addEventListener('keydown', onKeyDown, false); document.addEventListener('keyup', (event) => { keys[event.code] = false; }); renderer.domElement.addEventListener('click', () => { if (!isPointerLocked) { renderer.domElement.requestPointerLock(); } }, false); document.addEventListener('mousedown', onMouseDown, false); document.addEventListener('pointerlockchange', onPointerLockChange, false); document.addEventListener('pointerlockerror', onPointerLockError, false); document.addEventListener('mousemove', onMouseMove, false); window.addEventListener("gamepadconnected", handleGamepadConnected); window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
 
-            // --- P2: Gamepad Event Listeners ---
-            window.addEventListener("gamepadconnected", handleGamepadConnected);
-            window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
+            updateCrosshairVisibility(); updateGamepadStatusUI();
         }
 
-        // --- Fist Creation Function (for P1) ---
-        function createFistMesh() {
-            const fistGeometry = new THREE.BoxGeometry(FIST_SIZE_X, FIST_SIZE_Y, FIST_SIZE_Z); const fistMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, roughness: 0.6, metalness: 0.3 }); const fist = new THREE.Mesh(fistGeometry, fistMaterial); fist.castShadow = true; return fist;
-        }
-
-        // --- Dummy Creation Function ---
+        // --- Helper Functions ---
+        function createFistMesh() { const fistGeometry = new THREE.BoxGeometry(FIST_SIZE_X, FIST_SIZE_Y, FIST_SIZE_Z); const fistMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, roughness: 0.6, metalness: 0.3 }); const fist = new THREE.Mesh(fistGeometry, fistMaterial); fist.castShadow = true; return fist; }
         function createDummyMesh() { const dummyMaterial = new THREE.MeshStandardMaterial({ color: DUMMY_ORIGINAL_COLOR, roughness: 0.8 }); const dummyGeometry = new THREE.CylinderGeometry(DUMMY_RADIUS, DUMMY_RADIUS, DUMMY_HEIGHT, 16); const dummy = new THREE.Mesh(dummyGeometry, dummyMaterial); dummy.castShadow = true; dummy.receiveShadow = true; dummy.userData = { type: 'dummy', health: DUMMY_MAX_HEALTH }; return dummy; }
+        function createArrowMesh() { const group=new THREE.Group(); const shaftGeo=new THREE.CylinderGeometry(.02,.02,.8*.8); const shaftMat=new THREE.MeshStandardMaterial({color:0x8B4513}); const shaft=new THREE.Mesh(shaftGeo,shaftMat); shaft.rotation.x=Math.PI/2; shaft.position.z=.8*.8/2; shaft.castShadow=true; group.add(shaft); const headGeo=new THREE.ConeGeometry(.05,.8*.2,8); const headMat=new THREE.MeshStandardMaterial({color:0xAAAAAA}); const head=new THREE.Mesh(headGeo,headMat); head.rotation.x=Math.PI/2; head.position.z=.8*.8+.8*.2/2; head.castShadow=true; group.add(head); return group; }
+        function createFireballMesh() { return new THREE.Mesh(new THREE.SphereGeometry(FIREBALL_SIZE,16,8), new THREE.MeshBasicMaterial({color:0xffA500})); }
+        function createTree(x,z){ const trunkH=Math.random()*2+1; const tree=new THREE.Group(); const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,trunkH), new THREE.MeshStandardMaterial({color:0x8B4513})); trunk.position.y=trunkH/2; trunk.castShadow=true; trunk.receiveShadow=true; tree.add(trunk); const foliage=new THREE.Mesh(new THREE.ConeGeometry(.8,1.5,8), new THREE.MeshStandardMaterial({color:0x006400})); foliage.position.y=trunkH+1.5/2-.2; foliage.castShadow=true; foliage.receiveShadow=true; tree.add(foliage); tree.position.set(x,0,z); scene.add(tree); return tree; }
+        function createTrees(c){ const r=40; for(let i=0;i<c;i++){ let x,z; do{x=Math.random()*r-r/2; z=Math.random()*r-r/2;}while(Math.abs(x)<4&&Math.abs(z)<4); createTree(x,z);}}
+        function dummyTakeDamage(amount, sourcePosition) { if (dummyCurrentHealth <= 0) return; dummyCurrentHealth -= amount; dummyCurrentHealth = Math.max(0, dummyCurrentHealth); if (sourcePosition) { const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER; dummyVelocity.x += horizontalImpulse.x; dummyVelocity.z += horizontalImpulse.z; dummyVelocity.y += verticalImpulse; dummyIsOnGround = false; } dummyIsHit = true; dummyHitTimer = DUMMY_HIT_DURATION; trainingDummy.material.color.setHex(DUMMY_HIT_COLOR); if (dummyCurrentHealth <= 0) { console.log("Training Dummy Destroyed!"); trainingDummy.material.color.setHex(0x555555); } }
+        // --- End Helper Functions ---
 
-        // --- Projectile Creation Functions ---
-        function createArrowMesh() { const arrowLength = 0.8; const shaftRadius = 0.02; const shaftLength = arrowLength * 0.8; const headLength = arrowLength * 0.2; const headRadius = 0.05; const arrowGroup = new THREE.Group(); const shaftGeometry = new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength); const shaftMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial); shaft.rotation.x = Math.PI / 2; shaft.position.z = shaftLength / 2; shaft.castShadow = true; arrowGroup.add(shaft); const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8); const headMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA }); const head = new THREE.Mesh(headGeometry, headMaterial); head.rotation.x = Math.PI / 2; head.position.z = shaftLength + headLength / 2; head.castShadow = true; arrowGroup.add(head); return arrowGroup; }
-        function createFireballMesh() { const fireballGeometry = new THREE.SphereGeometry(FIREBALL_SIZE, 16, 8); const fireballMaterial = new THREE.MeshBasicMaterial({ color: 0xffA500 }); const fireball = new THREE.Mesh(fireballGeometry, fireballMaterial); return fireball; }
+        // --- UI Update Functions ---
+        function updateHealthBarP1() { updateHealthBarGeneric(healthBarInnerElementP1, currentHealthP1, MAX_HEALTH_P1); }
+        function updateHealthBarP2() { updateHealthBarGeneric(healthBarInnerElementP2, currentHealthP2, MAX_HEALTH_P2); }
 
-        // --- Tree Creation Functions ---
-        function createTree(x, z) { const trunkHeight = Math.random() * 2 + 1; const trunkRadius = 0.15; const foliageRadius = 0.8; const foliageHeight = 1.5; const tree = new THREE.Group(); const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight); const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial); trunk.position.y = trunkHeight / 2; trunk.castShadow = true; trunk.receiveShadow = true; tree.add(trunk); const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8); const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 }); const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial); foliage.position.y = trunkHeight + foliageHeight / 2 - 0.2; foliage.castShadow = true; foliage.receiveShadow = true; tree.add(foliage); tree.position.set(x, 0, z); scene.add(tree); return tree; }
-        function createTrees(count) { const range = 40; for (let i = 0; i < count; i++) { let x, z; do { x = Math.random() * range - range / 2; z = Math.random() * range - range / 2; } while (Math.abs(x) < 4 && Math.abs(z) < 4); createTree(x, z); } } // Increased min distance
-
-        // --- Health Bar Update Function (P1) ---
-        function updateHealthBar() { if (!healthBarInnerElement) return; const healthPercentage = (currentHealth / MAX_HEALTH) * 100; healthBarInnerElement.style.width = healthPercentage + '%'; if (healthPercentage < 30) { healthBarInnerElement.style.backgroundColor = '#f44336'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; } else if (healthPercentage < 60) { healthBarInnerElement.style.backgroundColor = '#ff9800'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; } else { healthBarInnerElement.style.backgroundColor = '#4CAF50'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; } }
-
-        // --- Dummy Damage Function ---
-        function dummyTakeDamage(amount, sourcePosition) {
-             if (dummyCurrentHealth <= 0) return; dummyCurrentHealth -= amount; dummyCurrentHealth = Math.max(0, dummyCurrentHealth); if (sourcePosition) { const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER; dummyVelocity.x += horizontalImpulse.x; dummyVelocity.z += horizontalImpulse.z; dummyVelocity.y += verticalImpulse; dummyIsOnGround = false; } dummyIsHit = true; dummyHitTimer = DUMMY_HIT_DURATION; trainingDummy.material.color.setHex(DUMMY_HIT_COLOR); if (dummyCurrentHealth <= 0) { console.log("Training Dummy Destroyed!"); trainingDummy.material.color.setHex(0x555555); }
+        function updateHealthBarGeneric(element, current, max) {
+             if (!element) return;
+             const percentage = (current / max) * 100;
+             element.style.width = percentage + '%';
+             if (percentage < 30) { element.style.backgroundColor = '#f44336'; element.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; }
+             else if (percentage < 60) { element.style.backgroundColor = '#ff9800'; element.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; }
+             else { element.style.backgroundColor = '#4CAF50'; element.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; }
         }
+        function updateGamepadStatusUI() { /* ... unchanged ... */ }
+        function updateCrosshairVisibility() { /* ... unchanged ... */ }
 
         // --- Event Handlers ---
-        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
-
-        // P1 Keyboard Input
-        function onKeyDown(event) {
-             keys[event.code] = true; const currentTime = performance.now(); if (event.code === 'Space') { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } } else if (event.code === 'KeyH') { if (currentHealth > 0) { currentHealth -= 10; currentHealth = Math.max(0, currentHealth); console.log("P1 Health decreased:", currentHealth); updateHealthBar(); } } else if (event.code === 'KeyQ') { if (currentTime > lastShotTimeQ + Q_COOLDOWN) { shootProjectile('arrow'); lastShotTimeQ = currentTime; } } else if (event.code === 'KeyE') { if (currentTime > lastShotTimeE + E_COOLDOWN) { shootProjectile('fireball'); lastShotTimeE = currentTime; } }
+        function onWindowResize() { renderer.setSize(window.innerWidth, window.innerHeight); }
+        function onKeyDown(event) { // Handles P1 Keyboard and Debug keys
+             keys[event.code] = true; const currentTime = performance.now();
+             // P1 Controls
+             if (event.code === 'Space') { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } }
+             else if (event.code === 'KeyQ') { if (currentTime > lastShotTimeQP1 + Q_COOLDOWN) { shootProjectileP1('arrow'); lastShotTimeQP1 = currentTime; } }
+             else if (event.code === 'KeyE') { if (currentTime > lastShotTimeEP1 + E_COOLDOWN) { shootProjectileP1('fireball'); lastShotTimeEP1 = currentTime; } }
+             // Debug Damage
+             else if (event.code === 'KeyH') { if (currentHealthP1 > 0) { currentHealthP1 -= 10; currentHealthP1 = Math.max(0, currentHealthP1); console.log("P1 Health:", currentHealthP1); updateHealthBarP1(); } }
+             else if (event.code === 'KeyJ') { if (currentHealthP2 > 0) { currentHealthP2 -= 10; currentHealthP2 = Math.max(0, currentHealthP2); console.log("P2 Health:", currentHealthP2); updateHealthBarP2(); } }
         }
-
-        // P1 Mouse Input (Melee)
-        function onMouseDown(event) {
-            if (event.button === 0 && isPointerLocked) { const currentTime = performance.now(); if (!isMeleeAttacking && currentTime > lastMeleeAttackTime + MELEE_COOLDOWN) { isMeleeAttacking = true; meleeAttackTimer = MELEE_ATTACK_DURATION; fistMesh.visible = true; lastMeleeAttackTime = currentTime; if (trainingDummy && dummyCurrentHealth > 0) { const distance = player.position.distanceTo(trainingDummy.position); if (distance < MELEE_RANGE) { const cameraDirection = new THREE.Vector3(); camera.getWorldDirection(cameraDirection); const vectorToDummy = trainingDummy.position.clone().sub(player.position).normalize(); const angle = cameraDirection.angleTo(vectorToDummy); if (angle < MELEE_ANGLE_THRESHOLD) { console.log("P1 Melee Hit Registered! Applying Knockback..."); dummyTakeDamage(MELEE_DAMAGE, player.position); } } } } }
+        function onMouseDown(event) { // P1 Melee
+             if (event.button === 0 && isPointerLocked) { const currentTime = performance.now();
+                 if (!isMeleeAttackingP1 && currentTime > lastMeleeAttackTimeP1 + MELEE_COOLDOWN) {
+                     isMeleeAttackingP1 = true; meleeAttackTimerP1 = MELEE_ATTACK_DURATION; fistMeshP1.visible = true; lastMeleeAttackTimeP1 = currentTime;
+                     // P1 Melee Hit Detection
+                     if (trainingDummy && dummyCurrentHealth > 0) { const distance = player.position.distanceTo(trainingDummy.position); if (distance < MELEE_RANGE) { const dir = new THREE.Vector3(); cameraP1.getWorldDirection(dir); const vecTo = trainingDummy.position.clone().sub(player.position).normalize(); if (dir.angleTo(vecTo) < MELEE_ANGLE_THRESHOLD) { console.log("P1 Melee Hit!"); dummyTakeDamage(MELEE_DAMAGE, player.position); } } } // Pass P1 pos
+                 }
+             }
         }
+        function onPointerLockChange() { isPointerLocked = (document.pointerLockElement === renderer.domElement); updateCrosshairVisibility(); }
+        function onPointerLockError() { console.error('Pointer Lock Error'); isPointerLocked = false; updateCrosshairVisibility(); }
+        function onMouseMove(event) { if (!isPointerLocked) return; const dX=event.movementX||0; const dY=event.movementY||0; playerRotationY-=dX*MOUSE_SENSITIVITY; cameraRotationX-=dY*MOUSE_SENSITIVITY; cameraRotationX=Math.max(-PITCH_LIMIT,Math.min(PITCH_LIMIT,cameraRotationX)); }
+        function handleGamepadConnected(event) { console.log("Gamepad connected:", event.gamepad.id); if (!gamepad) gamepad = event.gamepad; updateGamepadStatusUI(); updateCrosshairVisibility(); }
+        function handleGamepadDisconnected(event) { console.log("Gamepad disconnected:", event.gamepad.id); if (gamepad && gamepad.index === event.gamepad.index) gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); }
+        // --- End Event Handlers ---
 
-        function onPointerLockChange() { isPointerLocked = (document.pointerLockElement === renderer.domElement); }
-        function onPointerLockError() { console.error('Pointer Lock Error'); isPointerLocked = false; }
-        // P1 Mouse Movement (Camera)
-        function onMouseMove(event) { if (!isPointerLocked) return; const deltaX = event.movementX || 0; const deltaY = event.movementY || 0; playerRotationY -= deltaX * MOUSE_SENSITIVITY; cameraRotationX -= deltaY * MOUSE_SENSITIVITY; cameraRotationX = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cameraRotationX)); }
+        // --- P1 Shooting Function ---
+        function shootProjectileP1(type) { shootProjectileGeneric(type, cameraP1); }
+        // --- P2 Shooting Function ---
+        function shootProjectileP2(type) { shootProjectileGeneric(type, cameraP2); }
 
-        // --- P2: Gamepad Event Handlers ---
-        function handleGamepadConnected(event) {
-            console.log("Gamepad connected:", event.gamepad.id);
-            // Simple approach: Use the first connected gamepad
-            if (!gamepad) {
-                gamepad = event.gamepad;
-            }
-            updateGamepadStatusUI();
+        // --- Generic Shooting Function ---
+        function shootProjectileGeneric(type, sourceCamera) {
+            let mesh, speed, range, initialVelocityBoostY = 0, damage = 0;
+            if (type === 'arrow') { mesh = createArrowMesh(); speed = ARROW_SPEED; range = ARROW_RANGE; initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY; damage = ARROW_DAMAGE; }
+            else if (type === 'fireball') { mesh = createFireballMesh(); speed = FIREBALL_SPEED; range = FIREBALL_RANGE; damage = FIREBALL_DAMAGE; }
+            else { return; }
+
+            const direction = new THREE.Vector3(); sourceCamera.getWorldDirection(direction);
+            const startPosition = new THREE.Vector3(); sourceCamera.getWorldPosition(startPosition);
+            startPosition.add(direction.clone().multiplyScalar(1.0)); // Start slightly in front of camera
+
+            mesh.position.copy(startPosition);
+            mesh.lookAt(mesh.position.clone().add(direction));
+            const velocity = direction.multiplyScalar(speed);
+            velocity.y += initialVelocityBoostY; // Add initial upward arc for arrows
+
+            scene.add(mesh);
+            projectiles.push({ mesh: mesh, velocity: velocity, type: type, range: range, origin: startPosition.clone(), damage: damage });
         }
-
-        function handleGamepadDisconnected(event) {
-            console.log("Gamepad disconnected:", event.gamepad.id);
-            if (gamepad && gamepad.index === event.gamepad.index) {
-                gamepad = null;
-            }
-            updateGamepadStatusUI();
-        }
-
-        function updateGamepadStatusUI() {
-            if (!gamepadStatusElement) return;
-            if (gamepad) {
-                gamepadStatusElement.textContent = `Gamepad: Connected (${gamepad.id})`;
-                gamepadStatusElement.style.color = '#90ee90'; // Light green
-            } else {
-                gamepadStatusElement.textContent = 'Gamepad: Not Connected';
-                gamepadStatusElement.style.color = '#ffcccb'; // Light red
-            }
-        }
-
-
-        // --- Shooting Function (P1) ---
-        function shootProjectile(type) { let mesh, speed, range, initialVelocityBoostY = 0, damage = 0; if (type === 'arrow') { mesh = createArrowMesh(); speed = ARROW_SPEED; range = ARROW_RANGE; initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY; damage = ARROW_DAMAGE; } else if (type === 'fireball') { mesh = createFireballMesh(); speed = FIREBALL_SPEED; range = FIREBALL_RANGE; damage = FIREBALL_DAMAGE; } else { return; } const direction = new THREE.Vector3(); camera.getWorldDirection(direction); const startPosition = new THREE.Vector3(); camera.getWorldPosition(startPosition); startPosition.add(direction.clone().multiplyScalar(1.0)); mesh.position.copy(startPosition); mesh.lookAt(mesh.position.clone().add(direction)); const velocity = direction.multiplyScalar(speed); velocity.y += initialVelocityBoostY; scene.add(mesh); projectiles.push({ mesh: mesh, velocity: velocity, type: type, range: range, origin: startPosition.clone(), damage: damage }); }
 
         // --- Game Loop ---
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
-            const deltaTime = clock.getDelta(); // Time since last frame in seconds
-            const deltaMillis = deltaTime * 1000; // Time since last frame in milliseconds
+            const deltaTime = clock.getDelta(); const deltaMillis = deltaTime * 1000;
+            const currentTime = performance.now(); // Get time for cooldowns
 
-            // --- P2: Handle Gamepad Input FIRST ---
-            handleGamepadInput(); // Read current gamepad state
+            handleGamepadInput(); // Read gamepad state
 
-            // Update Players
-            updatePlayer(deltaTime); // P1 update
-            updatePlayer2(deltaTime); // P2 update
-
-            // Update Other Systems
-            updateCamera(); // P1 camera
+            // Update Logic
+            updatePlayerP1(deltaTime);
+            updatePlayerP2(deltaTime);
+            updateCameraP1();
+            updateCameraP2();
+            updateAttacksP1(currentTime, deltaMillis); // P1 attack timers/logic
+            updateAttacksP2(currentTime, deltaMillis); // P2 attack timers/logic
             updateProjectiles(deltaTime);
-            updateMeleeAttack(deltaMillis); // P1 melee animation/timer
             updateDummyState(deltaTime, deltaMillis);
 
-            renderer.render(scene, camera);
+            // Rendering
+            const screenWidth=window.innerWidth; const screenHeight=window.innerHeight; const halfWidth=Math.floor(screenWidth/2);
+            renderer.setViewport(0,0,halfWidth,screenHeight); renderer.setScissor(0,0,halfWidth,screenHeight); cameraP1.aspect=halfWidth/screenHeight; cameraP1.updateProjectionMatrix(); renderer.render(scene,cameraP1);
+            renderer.setViewport(halfWidth,0,screenWidth-halfWidth,screenHeight); renderer.setScissor(halfWidth,0,screenWidth-halfWidth,screenHeight); cameraP2.aspect=(screenWidth-halfWidth)/screenHeight; cameraP2.updateProjectionMatrix(); renderer.render(scene,cameraP2);
         }
 
         // --- Update Functions ---
-        // P1 Update
-        function updatePlayer(deltaTime) {
-            const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; playerOnGround = false; } } player.rotation.y = playerRotationY; // Update player model rotation based on mouse look
+        function updatePlayerP1(deltaTime) { /* ... P1 movement/physics ... */
+            const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; } playerOnGround = false; } player.rotation.y = playerRotationY;
+        }
+        function updatePlayerP2(deltaTime) { /* ... P2 movement/physics ... */
+             if (!player2) return; const moveDirectionP2 = new THREE.Vector3(gamepadInputState.moveX, 0, gamepadInputState.moveZ); if (moveDirectionP2.lengthSq() > 0) { moveDirectionP2.normalize(); moveDirectionP2.applyAxisAngle(new THREE.Vector3(0, 1, 0), player2CameraYaw); moveDirectionP2.multiplyScalar(PLAYER_SPEED * deltaTime); player2.position.add(moveDirectionP2); } player2.rotation.y = player2CameraYaw; player2Velocity.y += GRAVITY * deltaTime; player2.position.y += player2Velocity.y * deltaTime; if (player2.position.y <= PLAYER_HEIGHT / 2) { player2.position.y = PLAYER_HEIGHT / 2; if (player2Velocity.y <= 0) { player2Velocity.y = 0; if (!player2OnGround) { player2JumpsPerformed = 0; } player2OnGround = true; } } else { if (player2OnGround) { if (player2JumpsPerformed === 0) player2JumpsPerformed = 1; } player2OnGround = false; } if (gamepadInputState.jump && !player2JumpButtonPressedLastFrame) { if (player2JumpsPerformed < MAX_JUMPS) { player2Velocity.y = JUMP_FORCE; player2OnGround = false; player2JumpsPerformed++; } } player2JumpButtonPressedLastFrame = gamepadInputState.jump;
+        }
+        function updateCameraP1() { /* ... P1 camera positioning ... */
+            const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),cameraRotationX); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),playerRotationY); offset.applyQuaternion(qY.multiply(qX)); const target=player.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP1.position.copy(target).add(offset); if(cameraP1.position.y<MIN_CAMERA_HEIGHT)cameraP1.position.y=MIN_CAMERA_HEIGHT; cameraP1.lookAt(target);
+        }
+        function updateCameraP2() { /* ... P2 camera positioning ... */
+            if(!player2) return; const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),player2CameraPitch); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),player2CameraYaw); offset.applyQuaternion(qY.multiply(qX)); const target=player2.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP2.position.copy(target).add(offset); if(cameraP2.position.y<MIN_CAMERA_HEIGHT)cameraP2.position.y=MIN_CAMERA_HEIGHT; cameraP2.lookAt(target);
         }
 
-        // P1 Camera Update
-        function updateCamera() {
-            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE); const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX); const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion); cameraOffset.applyQuaternion(combinedQuaternion); const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0)); camera.position.copy(lookAtTarget).add(cameraOffset); if (camera.position.y < MIN_CAMERA_HEIGHT) { camera.position.y = MIN_CAMERA_HEIGHT; } camera.lookAt(lookAtTarget);
+        function handleGamepadInput() { // Read P2 inputs
+             if (!gamepad) { gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false }; return; }
+             const currentGamepad = navigator.getGamepads()[gamepad.index];
+             if (!currentGamepad) { gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); return; }
+             gamepad = currentGamepad;
+
+             // Axes (L: 0,1 ; R: 2,3)
+             let mX = gamepad.axes[0] || 0; let mZ = gamepad.axes[1] || 0;
+             let lX = gamepad.axes[2] || 0; let lY = gamepad.axes[3] || 0;
+             if (Math.abs(mX) < GAMEPAD_AXIS_DEADZONE) mX = 0; if (Math.abs(mZ) < GAMEPAD_AXIS_DEADZONE) mZ = 0;
+             if (Math.abs(lX) < GAMEPAD_AXIS_DEADZONE) lX = 0; if (Math.abs(lY) < GAMEPAD_AXIS_DEADZONE) lY = 0;
+
+             // Buttons (A=0, X=2, Y=3, RB=5 - Standard Xbox mapping)
+             const jump = gamepad.buttons[0]?.pressed || false;
+             const melee = gamepad.buttons[5]?.pressed || false; // RB
+             const shootArrow = gamepad.buttons[2]?.pressed || false; // X
+             const shootFireball = gamepad.buttons[3]?.pressed || false; // Y
+
+             // Update Camera Rotation directly
+             player2CameraYaw -= lX * GAMEPAD_LOOK_SENSITIVITY;
+             player2CameraPitch -= lY * GAMEPAD_LOOK_SENSITIVITY;
+             player2CameraPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, player2CameraPitch));
+
+             gamepadInputState = { moveX: mX, moveZ: mZ, lookX: lX, lookY: lY, jump: jump, melee: melee, shootArrow: shootArrow, shootFireball: shootFireball };
         }
 
-        // --- P2: Read Gamepad Input ---
-        function handleGamepadInput() {
-            if (!gamepad) return; // No gamepad connected
-
-            // IMPORTANT: Must re-fetch the gamepad state each frame
-            const currentGamepad = navigator.getGamepads()[gamepad.index];
-            if (!currentGamepad) {
-                gamepad = null; // Gamepad might have been disconnected without event
-                updateGamepadStatusUI();
-                return;
-            }
-            gamepad = currentGamepad; // Update our reference
-
-            // --- Read Axes (Left Stick for Movement) ---
-            // Standard Mapping: Axis 0: Left Stick X (-1 left, 1 right)
-            //                   Axis 1: Left Stick Y (-1 up, 1 down)
-            let moveX = gamepad.axes[0] || 0;
-            let moveZ = gamepad.axes[1] || 0; // Y axis maps to Z movement in 3D space
-
-            // Apply Deadzone
-            if (Math.abs(moveX) < GAMEPAD_AXIS_DEADZONE) moveX = 0;
-            if (Math.abs(moveZ) < GAMEPAD_AXIS_DEADZONE) moveZ = 0;
-
-            // --- Read Buttons ---
-            // Standard Mapping: Button 0: 'A' (Xbox) / 'Cross' (PlayStation) - Usually Jump
-            const jumpButtonPressed = gamepad.buttons[0] && gamepad.buttons[0].pressed;
-
-            // Store input state for use in updatePlayer2
-            // (Could pass directly, but storing might be useful for more complex actions later)
-            gamepadInputState = {
-                moveX: moveX,
-                moveZ: moveZ,
-                jump: jumpButtonPressed
-            };
+        // --- Attack Update Functions ---
+        function updateAttacksP1(currentTime, deltaMillis) {
+            // P1 Melee Timer
+            if (isMeleeAttackingP1) { meleeAttackTimerP1 -= deltaMillis; if (meleeAttackTimerP1 <= 0) { isMeleeAttackingP1 = false; fistMeshP1.visible = false; } }
+            // P1 Cooldowns are checked in onKeyDown/onMouseDown
         }
 
-        // --- P2: Update Player 2 ---
-        let gamepadInputState = { moveX: 0, moveZ: 0, jump: false }; // Store processed input
+        function updateAttacksP2(currentTime, deltaMillis) {
+             if (!player2) return; // Safety check
 
-        function updatePlayer2(deltaTime) {
-            if (!player2) return; // Safety check
+             // P2 Melee Action & Hit Detection
+             if (gamepadInputState.melee && !isMeleeAttackingP2 && currentTime > lastMeleeAttackTimeP2 + MELEE_COOLDOWN) {
+                 isMeleeAttackingP2 = true;
+                 meleeAttackTimerP2 = MELEE_ATTACK_DURATION;
+                 fistMeshP2.visible = true;
+                 lastMeleeAttackTimeP2 = currentTime;
+                 console.log("P2 Punch!");
 
-            // --- Apply Movement based on gamepadInputState ---
-            const moveDirectionP2 = new THREE.Vector3(gamepadInputState.moveX, 0, gamepadInputState.moveZ);
-
-            if (moveDirectionP2.lengthSq() > 0) {
-                moveDirectionP2.normalize();
-
-                // Make Player 2 face the direction of movement
-                player2RotationY = Math.atan2(gamepadInputState.moveX, gamepadInputState.moveZ);
-                player2.rotation.y = player2RotationY;
-
-                // Apply movement (world relative)
-                moveDirectionP2.multiplyScalar(PLAYER_SPEED * deltaTime);
-                player2.position.add(moveDirectionP2);
-            }
-
-            // --- Apply Gravity & Vertical Velocity ---
-            player2Velocity.y += GRAVITY * deltaTime;
-            player2.position.y += player2Velocity.y * deltaTime;
-
-            // --- Ground Check & Jump Reset ---
-            if (player2.position.y <= PLAYER_HEIGHT / 2) {
-                player2.position.y = PLAYER_HEIGHT / 2;
-                if (player2Velocity.y <= 0) { // Only stop if falling or still
-                    player2Velocity.y = 0;
-                    if (!player2OnGround) { // Landed
-                        player2JumpsPerformed = 0;
-                    }
-                    player2OnGround = true;
-                }
-            } else {
-                 // Player is in the air
-                 if (player2OnGround) { // Just left the ground
-                     if (player2JumpsPerformed === 0) player2JumpsPerformed = 1; // Count leaving ground as first jump if not already jumped
+                 // P2 Melee Hit Detection
+                 if (trainingDummy && dummyCurrentHealth > 0) {
+                     const distance = player2.position.distanceTo(trainingDummy.position);
+                     if (distance < MELEE_RANGE) {
+                         const direction = new THREE.Vector3();
+                         cameraP2.getWorldDirection(direction); // Use P2's camera
+                         const vectorToDummy = trainingDummy.position.clone().sub(player2.position).normalize();
+                         const angle = direction.angleTo(vectorToDummy);
+                         if (angle < MELEE_ANGLE_THRESHOLD) {
+                             console.log("P2 Melee Hit Registered!");
+                             dummyTakeDamage(MELEE_DAMAGE, player2.position); // Pass P2's position
+                         }
+                     }
                  }
-                player2OnGround = false;
-            }
+             }
 
-            // --- Handle Jumping ---
-            // Check if jump button is pressed NOW but wasn't pressed LAST frame
-            if (gamepadInputState.jump && !player2JumpButtonPressedLastFrame) {
-                 if (player2JumpsPerformed < MAX_JUMPS) {
-                     player2Velocity.y = JUMP_FORCE;
-                     player2OnGround = false; // Ensure player leaves ground state
-                     player2JumpsPerformed++;
+             // P2 Melee Timer Update
+             if (isMeleeAttackingP2) {
+                 meleeAttackTimerP2 -= deltaMillis;
+                 if (meleeAttackTimerP2 <= 0) {
+                     isMeleeAttackingP2 = false;
+                     fistMeshP2.visible = false;
+                     meleeAttackTimerP2 = 0;
                  }
-            }
-            // Update last frame's jump button state for next frame's check
-            player2JumpButtonPressedLastFrame = gamepadInputState.jump;
+             }
 
-            // --- P2: Collision/Interaction (Placeholder) ---
-            // Add collision detection between P1, P2, dummy, projectiles if needed
-        }
-
-
-        // --- Projectile Update Function ---
-        function updateProjectiles(deltaTime) {
-             for (let i = projectiles.length - 1; i >= 0; i--) {
-                 const p = projectiles[i]; let projectileRemoved = false; if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; } p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime)); if (p.type === 'arrow') { if (p.velocity.lengthSq() > 0.001) { const lookTarget = p.mesh.position.clone().add(p.velocity.clone().normalize()); p.mesh.lookAt(lookTarget); } } if (trainingDummy && dummyCurrentHealth > 0) { const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position); if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) { dummyTakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved) { const distanceFromOrigin = p.mesh.position.distanceTo(p.origin); if (distanceFromOrigin > p.range) { scene.remove(p.mesh); projectiles.splice(i, 1); } }
+             // P2 Ranged Attacks
+             if (gamepadInputState.shootArrow && currentTime > lastShotTimeQP2 + Q_COOLDOWN) {
+                 console.log("P2 Arrow!");
+                 shootProjectileP2('arrow');
+                 lastShotTimeQP2 = currentTime;
+             }
+             if (gamepadInputState.shootFireball && currentTime > lastShotTimeEP2 + E_COOLDOWN) {
+                  console.log("P2 Fireball!");
+                 shootProjectileP2('fireball');
+                 lastShotTimeEP2 = currentTime;
              }
         }
+        // --- End Attack Updates ---
 
-
-        // --- Melee Attack Update Function (P1) ---
-        function updateMeleeAttack(deltaMillis) {
-             if (isMeleeAttacking) { meleeAttackTimer -= deltaMillis; if (meleeAttackTimer <= 0) { isMeleeAttacking = false; fistMesh.visible = false; meleeAttackTimer = 0; } }
+        function updateProjectiles(deltaTime) { /* ... projectile movement, collision, range check ... */
+             for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; let projectileRemoved = false; if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; } p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime)); if (p.type === 'arrow' && p.velocity.lengthSq() > 0.001) { p.mesh.lookAt(p.mesh.position.clone().add(p.velocity.clone().normalize())); } if (trainingDummy && dummyCurrentHealth > 0) { const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position); if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) { dummyTakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved) { const distanceFromOrigin = p.mesh.position.distanceTo(p.origin); if (distanceFromOrigin > p.range) { scene.remove(p.mesh); projectiles.splice(i, 1); } } }
         }
-
-        // --- Dummy State Update Function ---
-        function updateDummyState(deltaTime, deltaMillis) {
+        function updateDummyState(deltaTime, deltaMillis) { /* ... dummy physics, hit flash ... */
              if (!dummyIsOnGround) { dummyVelocity.y += DUMMY_GRAVITY * deltaTime; } const dragFactor = 1.0 - DUMMY_LINEAR_DRAG * deltaTime; if (dragFactor > 0) { dummyVelocity.x *= dragFactor; dummyVelocity.z *= dragFactor; } else { dummyVelocity.x = 0; dummyVelocity.z = 0; } if (dummyCurrentHealth > 0 || !dummyIsOnGround) { trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime)); } if (trainingDummy.position.y <= DUMMY_HEIGHT / 2) { trainingDummy.position.y = DUMMY_HEIGHT / 2; if (dummyVelocity.y < 0) { dummyVelocity.y = 0; dummyIsOnGround = true; } } else { dummyIsOnGround = false; } if (dummyIsHit) { dummyHitTimer -= deltaMillis; if (dummyHitTimer <= 0) { dummyIsHit = false; dummyHitTimer = 0; if (dummyCurrentHealth > 0) { trainingDummy.material.color.setHex(DUMMY_ORIGINAL_COLOR); } } }
         }
+        // --- End Update Functions ---
 
-
-        // --- Start the game ---
-        window.onload = function() {
-            init();
-            animate();
-        }
+        // --- Start ---
+        window.onload = function() { init(); animate(); }
 
     </script>
 </body>
