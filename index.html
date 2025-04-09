@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+
+/* need 
+-shooting
+-melee
+-knockback
+2nd player / multiplayer / training dummy
+
+*/
+
+
+
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic 3D RPG - Crosshair</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #333; color: #fff; }
+        canvas { display: block; }
+        #ui-container { /* Container for UI elements like instructions and health */
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column; /* Stack UI elements vertically */
+            gap: 10px; /* Space between UI elements */
+            pointer-events: none; /* Allow clicks to pass through container */
+        }
+        #ui-container > div { /* Allow pointer events on direct children */
+             pointer-events: auto;
+        }
+        #instructions {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 200px;
+            line-height: 1.5;
+        }
+        #instructions strong {
+             display: block;
+             margin-bottom: 5px;
+             font-size: 16px;
+        }
+         #pointer-lock-info {
+            margin-top: 10px;
+            font-style: italic;
+            font-size: 12px;
+            color: #ccc;
+         }
+        /* Health Bar Styles */
+        #health-bar-container {
+            width: 150px;
+            height: 20px;
+            background-color: #555;
+            border-radius: 5px;
+            border: 1px solid #222;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+        #health-bar-inner {
+            height: 100%;
+            width: 100%;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.7);
+        }
+         #health-text {
+            font-size: 12px;
+            color: #eee;
+            margin-bottom: 2px;
+         }
+
+        /* Crosshair Styles */
+        #crosshair {
+            position: fixed; /* Position relative to viewport */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center precisely */
+            width: 2px;  /* Width of the vertical line */
+            height: 12px; /* Height of the vertical line */
+            background-color: white;
+            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Outline effect */
+            z-index: 11; /* Ensure it's above the canvas */
+            pointer-events: none; /* Make it non-interactive */
+        }
+
+        #crosshair::after { /* Horizontal line */
+            content: '';
+            position: absolute;
+            top: 50%; /* Center vertically */
+            left: -5px; /* (12px - 2px) / 2 = 5px offset */
+            width: 12px; /* Width of the horizontal line */
+            height: 2px; /* Height of the horizontal line */
+            background-color: white;
+            transform: translateY(-50%); /* Center precisely */
+            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Outline effect */
+        }
+
+    </style>
+</head>
+<body>
+    <div id="ui-container">
+        <div id="instructions">
+            <strong>Controls:</strong>
+            W: Move Forward<br>
+            A: Strafe Left<br>
+            S: Move Backward<br>
+            D: Strafe Right<br>
+            Space: Jump / Double Jump<br>
+            H: Decrease Health (Test)<br>
+            Mouse: Look Around
+            <div id="pointer-lock-info">Click the screen to lock mouse control. Press ESC to unlock.</div>
+        </div>
+        <div>
+             <div id="health-text">HP</div>
+             <div id="health-bar-container">
+                 <div id="health-bar-inner"></div>
+             </div>
+        </div>
+    </div>
+
+    <div id="crosshair"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // --- Core Components ---
+        let scene, camera, renderer;
+        let player, ground;
+        let playerVelocity = new THREE.Vector3();
+        let playerOnGround = false;
+        let jumpsPerformed = 0;
+
+        // --- Player Stats & UI ---
+        const MAX_HEALTH = 100;
+        let currentHealth = MAX_HEALTH;
+        let healthBarInnerElement;
+
+        // --- Constants ---
+        const PLAYER_HEIGHT = 1.0;
+        const PLAYER_WIDTH = 0.5;
+        const PLAYER_DEPTH = 0.5;
+        const PLAYER_SPEED = 5.0;
+        const GRAVITY = -15.0;
+        const JUMP_FORCE = 7.0;
+        const MAX_JUMPS = 2;
+        const CAMERA_DISTANCE = 5;
+        const CAMERA_HEIGHT_OFFSET = 0.8;
+        const HAT_HEIGHT = 0.2;
+        const HAT_WIDTH = 0.3;
+        const HAT_DEPTH = 0.4;
+        const MOUSE_SENSITIVITY = 0.002;
+        const PITCH_LIMIT = Math.PI / 2 - 0.1;
+
+        // --- Input State ---
+        const keys = {};
+        let playerRotationY = 0;
+        let cameraRotationX = 0;
+        let isPointerLocked = false;
+
+        // --- Initialization ---
+        function init() {
+            // Scene, Camera, Renderer setup (unchanged)
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.Fog(0x87ceeb, 10, 60);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting (unchanged)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 15, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -25;
+            directionalLight.shadow.camera.right = 25;
+            directionalLight.shadow.camera.top = 25;
+            directionalLight.shadow.camera.bottom = -25;
+            scene.add(directionalLight);
+
+            // Ground Plane (unchanged)
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide });
+            ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Player Cube & Hat (unchanged)
+            const playerGeometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH);
+            const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            player = new THREE.Mesh(playerGeometry, playerMaterial);
+            player.castShadow = true;
+            player.position.y = PLAYER_HEIGHT / 2;
+            scene.add(player);
+            const hatGeometry = new THREE.BoxGeometry(HAT_WIDTH, HAT_HEIGHT, HAT_DEPTH);
+            const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+            const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+            hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2;
+            hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05;
+            hat.castShadow = true;
+            player.add(hat);
+
+            // Trees (unchanged)
+            createTrees(20);
+
+            // Get UI Element References
+            healthBarInnerElement = document.getElementById('health-bar-inner');
+            updateHealthBar(); // Initialize health bar display
+
+            // --- Event Listeners ---
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('keydown', onKeyDown, false);
+            document.addEventListener('keyup', (event) => { keys[event.code] = false; });
+            renderer.domElement.addEventListener('click', () => { renderer.domElement.requestPointerLock(); }, false);
+            document.addEventListener('pointerlockchange', onPointerLockChange, false);
+            document.addEventListener('pointerlockerror', onPointerLockError, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+        }
+
+        // --- Tree Creation Functions (unchanged) ---
+        function createTree(x, z) {
+            const trunkHeight = Math.random() * 2 + 1;
+            const trunkRadius = 0.15;
+            const foliageRadius = 0.8;
+            const foliageHeight = 1.5;
+            const tree = new THREE.Group();
+            const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight);
+            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = trunkHeight / 2;
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            tree.add(trunk);
+            const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8);
+            const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 });
+            const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+            foliage.position.y = trunkHeight + foliageHeight / 2 - 0.2;
+            foliage.castShadow = true;
+            foliage.receiveShadow = true;
+            tree.add(foliage);
+            tree.position.set(x, 0, z);
+            scene.add(tree);
+            return tree;
+        }
+        function createTrees(count) {
+            const range = 40;
+            for (let i = 0; i < count; i++) {
+                let x, z;
+                do {
+                    x = Math.random() * range - range / 2;
+                    z = Math.random() * range - range / 2;
+                } while (Math.abs(x) < 3 && Math.abs(z) < 3);
+                createTree(x, z);
+            }
+        }
+
+        // --- Health Bar Update Function (unchanged) ---
+        function updateHealthBar() {
+            if (!healthBarInnerElement) return;
+            const healthPercentage = (currentHealth / MAX_HEALTH) * 100;
+            healthBarInnerElement.style.width = healthPercentage + '%';
+            if (healthPercentage < 30) {
+                healthBarInnerElement.style.backgroundColor = '#f44336';
+                 healthBarInnerElement.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)';
+            } else if (healthPercentage < 60) {
+                healthBarInnerElement.style.backgroundColor = '#ff9800';
+                 healthBarInnerElement.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)';
+            } else {
+                healthBarInnerElement.style.backgroundColor = '#4CAF50';
+                 healthBarInnerElement.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)';
+            }
+        }
+
+
+        // --- Event Handlers (unchanged) ---
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        function onKeyDown(event) {
+            keys[event.code] = true;
+            if (event.code === 'Space') {
+                if (jumpsPerformed < MAX_JUMPS) {
+                    playerVelocity.y = JUMP_FORCE;
+                    playerOnGround = false;
+                    jumpsPerformed++;
+                }
+            }
+            else if (event.code === 'KeyH') {
+                 if (currentHealth > 0) {
+                    currentHealth -= 10;
+                    currentHealth = Math.max(0, currentHealth);
+                    console.log("Health decreased:", currentHealth);
+                    updateHealthBar();
+                 }
+            }
+        }
+        function onPointerLockChange() {
+            isPointerLocked = (document.pointerLockElement === renderer.domElement);
+        }
+        function onPointerLockError() {
+            console.error('Pointer Lock Error');
+            isPointerLocked = false;
+        }
+        function onMouseMove(event) {
+            if (!isPointerLocked) return;
+            const deltaX = event.movementX || 0;
+            const deltaY = event.movementY || 0;
+            playerRotationY -= deltaX * MOUSE_SENSITIVITY;
+            cameraRotationX -= deltaY * MOUSE_SENSITIVITY;
+            cameraRotationX = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cameraRotationX));
+        }
+
+
+        // --- Game Loop (unchanged) ---
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const deltaTime = clock.getDelta();
+            updatePlayer(deltaTime);
+            updateCamera();
+            renderer.render(scene, camera);
+        }
+
+        // --- Update Functions (unchanged) ---
+        function updatePlayer(deltaTime) {
+            const moveDirection = new THREE.Vector3();
+            if (keys['KeyW']) moveDirection.z -= 1;
+            if (keys['KeyS']) moveDirection.z += 1;
+            if (keys['KeyA']) moveDirection.x -= 1;
+            if (keys['KeyD']) moveDirection.x += 1;
+
+            if (moveDirection.lengthSq() > 0) {
+                moveDirection.normalize();
+                moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY);
+                moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime);
+                player.position.add(moveDirection);
+            }
+
+            playerVelocity.y += GRAVITY * deltaTime;
+            player.position.y += playerVelocity.y * deltaTime;
+
+            if (player.position.y <= PLAYER_HEIGHT / 2) {
+                player.position.y = PLAYER_HEIGHT / 2;
+                if (playerVelocity.y <= 0) {
+                    playerVelocity.y = 0;
+                    if (!playerOnGround) {
+                         jumpsPerformed = 0;
+                    }
+                    playerOnGround = true;
+                }
+            } else {
+                 if (playerOnGround) {
+                     if (jumpsPerformed === 0) jumpsPerformed = 1;
+                     playerOnGround = false;
+                 }
+            }
+            player.rotation.y = playerRotationY;
+        }
+        function updateCamera() {
+            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE);
+            const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX);
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY);
+            const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion);
+            cameraOffset.applyQuaternion(combinedQuaternion);
+            const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
+            camera.position.copy(lookAtTarget).add(cameraOffset);
+            camera.lookAt(lookAtTarget);
+        }
+
+        // --- Start the game ---
+        window.onload = function() {
+            init();
+            animate();
+        }
+
+    </script>
+</body>
+</html>
