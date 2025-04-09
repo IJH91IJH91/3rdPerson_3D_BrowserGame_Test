@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic 3D RPG - Camera Height Fix</title>
+    <title>Basic 3D RPG - Melee Attack</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #333; color: #fff; }
         canvas { display: block; }
@@ -97,7 +97,9 @@
             S: Move Backward<br>
             D: Strafe Right<br>
             Space: Jump / Double Jump<br>
-            Q: Shoot Arrow<br>       E: Shoot Fireball<br>    H: Decrease Health (Test)<br>
+            Q: Shoot Arrow<br>
+            E: Shoot Fireball<br>
+            Left Click: Melee Attack<br> H: Decrease Health (Test)<br>
             Mouse: Look Around
             <div id="pointer-lock-info">Click the screen to lock mouse control. Press ESC to unlock.</div>
         </div>
@@ -114,7 +116,7 @@
     <script>
         // --- Core Components ---
         let scene, camera, renderer;
-        let player, ground;
+        let player, ground, swordMesh; // Added swordMesh
         let playerVelocity = new THREE.Vector3();
         let playerOnGround = false;
         let jumpsPerformed = 0;
@@ -135,7 +137,7 @@
         const MAX_JUMPS = 2;
         const CAMERA_DISTANCE = 5;
         const CAMERA_HEIGHT_OFFSET = 0.8;
-        const MIN_CAMERA_HEIGHT = 0.2; // Minimum height camera can go
+        const MIN_CAMERA_HEIGHT = 0.2;
         const HAT_HEIGHT = 0.2;
         const HAT_WIDTH = 0.3;
         const HAT_DEPTH = 0.4;
@@ -153,6 +155,13 @@
         const Q_COOLDOWN = 500;
         const E_COOLDOWN = 1000;
 
+        // --- Melee Attack Constants ---
+        const MELEE_ATTACK_DURATION = 250; // ms - how long sword is visible
+        const MELEE_COOLDOWN = 400; // ms - time between attacks
+        const SWORD_LENGTH = 0.8;
+        const SWORD_WIDTH = 0.08;
+        const SWORD_THICKNESS = 0.02;
+
         // --- Input State ---
         const keys = {};
         let playerRotationY = 0;
@@ -160,6 +169,9 @@
         let isPointerLocked = false;
         let lastShotTimeQ = 0;
         let lastShotTimeE = 0;
+        let lastMeleeAttackTime = 0; // Cooldown timer for melee
+        let isMeleeAttacking = false; // State flag for melee attack
+        let meleeAttackTimer = 0; // Timer for attack duration
 
         // --- Initialization ---
         function init() {
@@ -179,14 +191,8 @@
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
             directionalLight.position.set(10, 15, 10);
             directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 1024;
-            directionalLight.shadow.mapSize.height = 1024;
-            directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 50;
-            directionalLight.shadow.camera.left = -25;
-            directionalLight.shadow.camera.right = 25;
-            directionalLight.shadow.camera.top = 25;
-            directionalLight.shadow.camera.bottom = -25;
+            // ... shadow map setup ...
+             directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50; directionalLight.shadow.camera.left = -25; directionalLight.shadow.camera.right = 25; directionalLight.shadow.camera.top = 25; directionalLight.shadow.camera.bottom = -25;
             scene.add(directionalLight);
 
             // Ground Plane
@@ -212,6 +218,14 @@
             hat.castShadow = true;
             player.add(hat);
 
+            // Create and add Sword (initially hidden)
+            swordMesh = createSwordMesh();
+            swordMesh.visible = false; // Start hidden
+            // Position relative to player (e.g., held forward)
+            swordMesh.position.set(PLAYER_WIDTH * 0.4, 0.1, -SWORD_LENGTH * 0.6); // Adjust x,y,z as needed
+            swordMesh.rotation.set(0, -Math.PI / 12, Math.PI / 4); // Adjust rotation
+            player.add(swordMesh); // Attach to player
+
             // Trees
             createTrees(20);
 
@@ -223,11 +237,50 @@
             window.addEventListener('resize', onWindowResize, false);
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', (event) => { keys[event.code] = false; });
-            renderer.domElement.addEventListener('click', () => { renderer.domElement.requestPointerLock(); }, false);
+            // Listener for Pointer Lock request
+            renderer.domElement.addEventListener('click', () => {
+                if (!isPointerLocked) { // Only request if not already locked
+                     renderer.domElement.requestPointerLock();
+                }
+            }, false);
+            // Listener for Melee Attack Trigger
+            document.addEventListener('mousedown', onMouseDown, false); // Use mousedown for attack
             document.addEventListener('pointerlockchange', onPointerLockChange, false);
             document.addEventListener('pointerlockerror', onPointerLockError, false);
             document.addEventListener('mousemove', onMouseMove, false);
         }
+
+        // --- Sword Creation Function ---
+        function createSwordMesh() {
+            const swordGroup = new THREE.Group();
+
+            // Blade
+            const bladeGeometry = new THREE.BoxGeometry(SWORD_WIDTH, SWORD_THICKNESS, SWORD_LENGTH);
+            const bladeMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.4 }); // Silver
+            const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            blade.position.z = SWORD_LENGTH / 2; // Position blade relative to hilt center
+            blade.castShadow = true;
+            swordGroup.add(blade);
+
+            // Hilt (simple cylinder)
+            const hiltRadius = SWORD_WIDTH * 0.6;
+            const hiltLength = SWORD_WIDTH * 1.5;
+            const hiltGeometry = new THREE.CylinderGeometry(hiltRadius, hiltRadius, hiltLength);
+            const hiltMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // Brown
+            const hilt = new THREE.Mesh(hiltGeometry, hiltMaterial);
+            // Rotate hilt to be perpendicular to blade
+            hilt.rotation.x = Math.PI / 2;
+             // Position hilt slightly behind the blade base (group origin)
+            hilt.position.z = -hiltLength / 4;
+            hilt.castShadow = true;
+            swordGroup.add(hilt);
+
+            // Position group origin at the base of the blade/center of hilt for easier rotation
+            swordGroup.position.z = -SWORD_LENGTH / 2;
+
+            return swordGroup;
+        }
+
 
         // --- Projectile Creation Functions ---
         function createArrowMesh() { /* ... arrow mesh creation code (unchanged) ... */
@@ -254,11 +307,41 @@
         function onWindowResize() { /* ... resize code ... */
              camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
         }
-        function onKeyDown(event) { /* ... keydown code (unchanged) ... */
-             keys[event.code] = true; const currentTime = performance.now(); if (event.code === 'Space') { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } } else if (event.code === 'KeyH') { if (currentHealth > 0) { currentHealth -= 10; currentHealth = Math.max(0, currentHealth); console.log("Health decreased:", currentHealth); updateHealthBar(); } } else if (event.code === 'KeyQ') { if (currentTime > lastShotTimeQ + Q_COOLDOWN) { shootProjectile('arrow'); lastShotTimeQ = currentTime; } } else if (event.code === 'KeyE') { if (currentTime > lastShotTimeE + E_COOLDOWN) { shootProjectile('fireball'); lastShotTimeE = currentTime; } }
+
+        // Handles keyboard input (movement, jump, projectiles, health test)
+        function onKeyDown(event) {
+             keys[event.code] = true;
+             const currentTime = performance.now();
+             if (event.code === 'Space') { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } }
+             else if (event.code === 'KeyH') { if (currentHealth > 0) { currentHealth -= 10; currentHealth = Math.max(0, currentHealth); console.log("Health decreased:", currentHealth); updateHealthBar(); } }
+             else if (event.code === 'KeyQ') { if (currentTime > lastShotTimeQ + Q_COOLDOWN) { shootProjectile('arrow'); lastShotTimeQ = currentTime; } }
+             else if (event.code === 'KeyE') { if (currentTime > lastShotTimeE + E_COOLDOWN) { shootProjectile('fireball'); lastShotTimeE = currentTime; } }
         }
+
+        // Handles mouse button input (melee attack)
+        function onMouseDown(event) {
+            // Check for Left Mouse Button (button 0)
+            if (event.button === 0 && isPointerLocked) { // Only attack if pointer is locked
+                const currentTime = performance.now();
+                // Check cooldown and if not already attacking
+                if (!isMeleeAttacking && currentTime > lastMeleeAttackTime + MELEE_COOLDOWN) {
+                    // Start attack
+                    isMeleeAttacking = true;
+                    meleeAttackTimer = MELEE_ATTACK_DURATION;
+                    swordMesh.visible = true; // Show the sword
+                    lastMeleeAttackTime = currentTime; // Reset cooldown timer
+
+                    // TODO: Add optional sound effect or simple animation start here
+                    // console.log("Melee Attack!"); // Optional log
+                }
+            }
+        }
+
+
         function onPointerLockChange() { /* ... pointer lock change code ... */
              isPointerLocked = (document.pointerLockElement === renderer.domElement);
+             // Optional: Hide crosshair when pointer is not locked?
+             // document.getElementById('crosshair').style.display = isPointerLocked ? 'block' : 'none';
         }
         function onPointerLockError() { /* ... pointer lock error code ... */
              console.error('Pointer Lock Error'); isPointerLocked = false;
@@ -276,11 +359,13 @@
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
-            const deltaTime = clock.getDelta();
+            const deltaTime = clock.getDelta(); // Time in seconds
+            const deltaMillis = deltaTime * 1000; // Time in milliseconds
 
             updatePlayer(deltaTime);
-            updateCamera(); // Camera update now includes height check
+            updateCamera();
             updateProjectiles(deltaTime);
+            updateMeleeAttack(deltaMillis); // Update melee attack state
 
             renderer.render(scene, camera);
         }
@@ -290,33 +375,27 @@
             const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; playerOnGround = false; } } player.rotation.y = playerRotationY;
         }
 
-        // --- Camera Update Function (MODIFIED) ---
-        function updateCamera() {
-            // Calculate camera position relative to player (same logic as before)
-            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE);
-            const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX);
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY);
-            const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion);
-            cameraOffset.applyQuaternion(combinedQuaternion);
-
-            const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
-            camera.position.copy(lookAtTarget).add(cameraOffset);
-
-            // --- ADDED: Minimum Height Check ---
-            // Prevent camera from going below the minimum height
-            if (camera.position.y < MIN_CAMERA_HEIGHT) {
-                camera.position.y = MIN_CAMERA_HEIGHT;
-            }
-            // --- End of Added Check ---
-
-            // Make the camera look at the target position (after potential height adjustment)
-            camera.lookAt(lookAtTarget);
+        function updateCamera() { /* ... camera update code (unchanged) ... */
+            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE); const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX); const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion); cameraOffset.applyQuaternion(combinedQuaternion); const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0)); camera.position.copy(lookAtTarget).add(cameraOffset); if (camera.position.y < MIN_CAMERA_HEIGHT) { camera.position.y = MIN_CAMERA_HEIGHT; } camera.lookAt(lookAtTarget);
         }
 
-
-        // --- Projectile Update Function (unchanged) ---
-        function updateProjectiles(deltaTime) { /* ... projectile update code ... */
+        function updateProjectiles(deltaTime) { /* ... projectile update code (unchanged) ... */
              for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; } const currentPos = p.mesh.position.clone(); p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime)); if (p.type === 'arrow') { if (p.velocity.lengthSq() > 0.001) { const lookTarget = p.mesh.position.clone().add(p.velocity.clone().normalize()); p.mesh.lookAt(lookTarget); } } const distanceFromOrigin = p.mesh.position.distanceTo(p.origin); if (distanceFromOrigin > p.range) { scene.remove(p.mesh); projectiles.splice(i, 1); } }
+        }
+
+        // --- Melee Attack Update Function ---
+        function updateMeleeAttack(deltaMillis) {
+            if (isMeleeAttacking) {
+                meleeAttackTimer -= deltaMillis; // Decrease timer
+
+                // Optional: Add simple swing animation here by changing swordMesh rotation/position slightly based on timer
+
+                if (meleeAttackTimer <= 0) {
+                    isMeleeAttacking = false; // End attack
+                    swordMesh.visible = false; // Hide sword
+                    meleeAttackTimer = 0;
+                }
+            }
         }
 
 
