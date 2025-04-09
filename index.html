@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic 3D RPG - Melee Hitbox Fix</title>
+    <title>Basic 3D RPG - Fist Melee</title>
     <style>
+        /* Basic styling for body, canvas, and UI */
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #333; color: #fff; }
         canvas { display: block; }
         #ui-container {
@@ -15,11 +16,11 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            pointer-events: none;
+            pointer-events: none; /* Allow clicks to pass through container */
         }
-        #ui-container > div {
-             pointer-events: auto;
-        }
+         #ui-container > div {
+             pointer-events: auto; /* Make child elements clickable */
+         }
         #instructions {
             background-color: rgba(0, 0, 0, 0.7);
             padding: 15px;
@@ -32,12 +33,12 @@
              display: block;
              margin-bottom: 5px;
              font-size: 16px;
-        }
+         }
          #pointer-lock-info {
-            margin-top: 10px;
-            font-style: italic;
-            font-size: 12px;
-            color: #ccc;
+             margin-top: 10px;
+             font-style: italic;
+             font-size: 12px;
+             color: #ccc;
          }
         /* Health Bar Styles */
         #health-bar-container {
@@ -51,16 +52,16 @@
         }
         #health-bar-inner {
             height: 100%;
-            width: 100%;
-            background-color: #4CAF50;
+            width: 100%; /* Start full */
+            background-color: #4CAF50; /* Green */
             border-radius: 4px;
             transition: width 0.3s ease-out;
             box-shadow: 0 0 5px rgba(76, 175, 80, 0.7);
         }
          #health-text {
-            font-size: 12px;
-            color: #eee;
-            margin-bottom: 2px;
+             font-size: 12px;
+             color: #eee;
+             margin-bottom: 2px;
          }
         /* Crosshair Styles */
         #crosshair {
@@ -68,23 +69,23 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 2px;
+            width: 2px; /* Vertical line */
             height: 12px;
             background-color: white;
-            box-shadow: 0 0 3px black, 0 0 1px black inset;
-            z-index: 11;
-            pointer-events: none;
+            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Add shadow for visibility */
+            z-index: 11; /* Ensure it's above the game */
+            pointer-events: none; /* Don't interfere with clicks */
         }
         #crosshair::after {
             content: '';
             position: absolute;
-            top: 50%;
-            left: -5px;
-            width: 12px;
+            top: 50%; /* Center vertically */
+            left: -5px; /* Position horizontal line */
+            width: 12px; /* Horizontal line */
             height: 2px;
             background-color: white;
-            transform: translateY(-50%);
-            box-shadow: 0 0 3px black, 0 0 1px black inset;
+            transform: translateY(-50%); /* Center horizontal line */
+            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Add shadow */
         }
     </style>
 </head>
@@ -99,7 +100,7 @@
             Space: Jump / Double Jump<br>
             Q: Shoot Arrow<br>
             E: Shoot Fireball<br>
-            Left Click: Melee Attack<br>
+            Left Click: Melee Punch<br>
             H: Decrease Health (Test)<br>
             Mouse: Look Around
             <div id="pointer-lock-info">Click the screen to lock mouse control. Press ESC to unlock.</div>
@@ -114,11 +115,12 @@
     <div id="crosshair"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <script>
         // --- Core Components ---
         let scene, camera, renderer;
-        let player, ground, swordMesh, trainingDummy;
-        let playerVelocity = new THREE.Vector3();
+        let player, ground, fistMesh, trainingDummy; // Changed swordMesh to fistMesh
+        let playerVelocity = new THREE.Vector3(); // Line 157 where the error likely occurred
         let playerOnGround = false;
         let jumpsPerformed = 0;
         let projectiles = [];
@@ -160,27 +162,26 @@
         const PROJECTILE_HIT_RADIUS_APPROX = 0.3;
 
         // --- Melee Attack Constants ---
-        const MELEE_ATTACK_DURATION = 250;
+        const MELEE_ATTACK_DURATION = 250; // Duration the fist is visible
         const MELEE_COOLDOWN = 400;
         const MELEE_DAMAGE = 25;
-        const MELEE_RANGE = 3.5; // Keep increased range
+        const MELEE_RANGE = 3.0; // Slightly reduced range for punch
         const MELEE_ANGLE_THRESHOLD = Math.PI / 3; // ~60 degrees angle tolerance
-        const SWORD_SCALE = 3.0;
-        const SWORD_LENGTH = 0.8;
-        const SWORD_WIDTH = 0.08;
-        const SWORD_THICKNESS = 0.02;
+        const FIST_SIZE_X = 0.4; // Fist dimensions
+        const FIST_SIZE_Y = 0.4;
+        const FIST_SIZE_Z = 0.4;
 
         // --- Training Dummy Constants ---
         const DUMMY_RADIUS = 0.5;
         const DUMMY_HEIGHT = 1.8;
         const DUMMY_MAX_HEALTH = 200;
         const DUMMY_HIT_DURATION = 150;
-        const DUMMY_ORIGINAL_COLOR = 0xdeb887;
-        const DUMMY_HIT_COLOR = 0xffffff;
-        const DUMMY_GRAVITY = GRAVITY * 0.9;
-        const DUMMY_LINEAR_DRAG = 1.0;
-        const KNOCKBACK_FORCE_MULTIPLIER = 0.3;
-        const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2;
+        const DUMMY_ORIGINAL_COLOR = 0xdeb887; // Burlywood
+        const DUMMY_HIT_COLOR = 0xffffff; // White flash on hit
+        const DUMMY_GRAVITY = GRAVITY * 0.9; // Slightly less gravity than player
+        const DUMMY_LINEAR_DRAG = 1.0; // How quickly horizontal velocity decreases
+        const KNOCKBACK_FORCE_MULTIPLIER = 0.3; // How much damage affects knockback strength
+        const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2; // How much damage affects vertical knockback
 
         // --- Input State ---
         const keys = {};
@@ -205,53 +206,55 @@
         function init() {
             // Scene, Camera, Renderer setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.Fog(0x87ceeb, 10, 60);
+            scene.background = new THREE.Color(0x87ceeb); // Sky blue
+            scene.fog = new THREE.Fog(0x87ceeb, 10, 60); // Add fog for depth
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.enabled = true; // Enable shadows
             document.body.appendChild(renderer.domElement);
 
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Soft ambient light
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // Sun light
             directionalLight.position.set(10, 15, 10);
             directionalLight.castShadow = true;
+            // Configure shadow properties for better quality
              directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50; directionalLight.shadow.camera.left = -25; directionalLight.shadow.camera.right = 25; directionalLight.shadow.camera.top = 25; directionalLight.shadow.camera.bottom = -25;
             scene.add(directionalLight);
 
             // Ground Plane
             const groundGeometry = new THREE.PlaneGeometry(100, 100);
-            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide });
+            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide }); // Forest green
             ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
+            ground.rotation.x = -Math.PI / 2; // Rotate to be flat
+            ground.receiveShadow = true; // Ground receives shadows
             scene.add(ground);
 
             // Player Cube & Hat
             const playerGeometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH);
-            const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red player
             player = new THREE.Mesh(playerGeometry, playerMaterial);
-            player.castShadow = true;
-            player.position.y = PLAYER_HEIGHT / 2;
+            player.castShadow = true; // Player casts shadows
+            player.position.y = PLAYER_HEIGHT / 2; // Start on the ground
             scene.add(player);
+            // Add a simple hat for orientation indication
             const hatGeometry = new THREE.BoxGeometry(HAT_WIDTH, HAT_HEIGHT, HAT_DEPTH);
-            const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+            const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff }); // Blue hat
             const hat = new THREE.Mesh(hatGeometry, hatMaterial);
-            hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2;
-            hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05;
+            hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; // Position on top of head
+            hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; // Position slightly forward
             hat.castShadow = true;
-            player.add(hat);
+            player.add(hat); // Add hat as child of player
 
-            // Create and add Sword (initially hidden, scaled)
-            swordMesh = createSwordMesh();
-            swordMesh.visible = false;
-            // Sword Position (Further Forward)
-            swordMesh.position.set(PLAYER_WIDTH * 0.4, 0.1, -1.8); // Kept further forward Z
-            swordMesh.rotation.set(0, -Math.PI / 12, Math.PI / 4);
-            player.add(swordMesh);
+            // Create and add Fist (initially hidden)
+            fistMesh = createFistMesh();
+            fistMesh.visible = false;
+            // Position the fist relative to the player (adjust as needed)
+            fistMesh.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6);
+            fistMesh.rotation.set(0, 0, 0); // Simple orientation for now
+            player.add(fistMesh); // Add fist as child of player
 
             // Create and add Training Dummy
             trainingDummy = createDummyMesh();
@@ -259,155 +262,170 @@
             scene.add(trainingDummy);
 
             // Trees
-            createTrees(20);
+            createTrees(20); // Add some trees to the scene
 
             // Get UI Element References
             healthBarInnerElement = document.getElementById('health-bar-inner');
-            updateHealthBar();
+            updateHealthBar(); // Initialize health bar display
 
             // --- Event Listeners ---
             window.addEventListener('resize', onWindowResize, false);
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', (event) => { keys[event.code] = false; });
+            // Pointer Lock listeners
             renderer.domElement.addEventListener('click', () => { if (!isPointerLocked) { renderer.domElement.requestPointerLock(); } }, false);
-            document.addEventListener('mousedown', onMouseDown, false);
+            document.addEventListener('mousedown', onMouseDown, false); // Listen for mouse clicks (melee)
             document.addEventListener('pointerlockchange', onPointerLockChange, false);
             document.addEventListener('pointerlockerror', onPointerLockError, false);
-            document.addEventListener('mousemove', onMouseMove, false);
+            document.addEventListener('mousemove', onMouseMove, false); // Listen for mouse movement
         }
 
-        // --- Sword Creation Function (unchanged) ---
-        function createSwordMesh() {
-            const swordGroup = new THREE.Group();
-            const baseSwordLength = SWORD_LENGTH; const baseSwordWidth = SWORD_WIDTH; const baseSwordThickness = SWORD_THICKNESS; const hiltRadius = baseSwordWidth * 0.6; const hiltLength = baseSwordWidth * 1.5;
-            const bladeGeometry = new THREE.BoxGeometry(baseSwordWidth, baseSwordThickness, baseSwordLength); const bladeMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.4 }); const blade = new THREE.Mesh(bladeGeometry, bladeMaterial); blade.position.z = baseSwordLength / 2; blade.castShadow = true; swordGroup.add(blade);
-            const hiltGeometry = new THREE.CylinderGeometry(hiltRadius, hiltRadius, hiltLength); const hiltMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); const hilt = new THREE.Mesh(hiltGeometry, hiltMaterial); hilt.rotation.x = Math.PI / 2; hilt.position.z = -hiltLength / 4; hilt.castShadow = true; swordGroup.add(hilt);
-            swordGroup.scale.set(SWORD_SCALE, SWORD_SCALE, SWORD_SCALE);
-            return swordGroup;
+        // --- Fist Creation Function ---
+        function createFistMesh() {
+            const fistGeometry = new THREE.BoxGeometry(FIST_SIZE_X, FIST_SIZE_Y, FIST_SIZE_Z);
+            const fistMaterial = new THREE.MeshStandardMaterial({
+                color: 0xAAAAAA, // Grey color for fist
+                roughness: 0.6,
+                metalness: 0.3
+            });
+            const fist = new THREE.Mesh(fistGeometry, fistMaterial);
+            fist.castShadow = true;
+            return fist;
         }
 
-        // --- Dummy Creation Function (unchanged) ---
+        // --- Dummy Creation Function ---
         function createDummyMesh() {
             const dummyMaterial = new THREE.MeshStandardMaterial({ color: DUMMY_ORIGINAL_COLOR, roughness: 0.8 });
-            const dummyGeometry = new THREE.CylinderGeometry(DUMMY_RADIUS, DUMMY_RADIUS, DUMMY_HEIGHT, 16);
+            const dummyGeometry = new THREE.CylinderGeometry(DUMMY_RADIUS, DUMMY_RADIUS, DUMMY_HEIGHT, 16); // Cylinder shape
             const dummy = new THREE.Mesh(dummyGeometry, dummyMaterial);
-            dummy.castShadow = true; dummy.receiveShadow = true;
+            dummy.castShadow = true; // Dummy casts shadows
+            dummy.receiveShadow = true; // Dummy receives shadows
+            // Store health data directly on the mesh's userData
             dummy.userData = { type: 'dummy', health: DUMMY_MAX_HEALTH };
             return dummy;
         }
 
 
         // --- Projectile Creation Functions ---
-        function createArrowMesh() { /* ... arrow mesh creation code (unchanged) ... */
+        function createArrowMesh() {
              const arrowLength = 0.8; const shaftRadius = 0.02; const shaftLength = arrowLength * 0.8; const headLength = arrowLength * 0.2; const headRadius = 0.05; const arrowGroup = new THREE.Group(); const shaftGeometry = new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength); const shaftMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial); shaft.rotation.x = Math.PI / 2; shaft.position.z = shaftLength / 2; shaft.castShadow = true; arrowGroup.add(shaft); const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8); const headMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA }); const head = new THREE.Mesh(headGeometry, headMaterial); head.rotation.x = Math.PI / 2; head.position.z = shaftLength + headLength / 2; head.castShadow = true; arrowGroup.add(head); return arrowGroup;
         }
-        function createFireballMesh() { /* ... fireball mesh creation code (unchanged) ... */
+        function createFireballMesh() {
              const fireballGeometry = new THREE.SphereGeometry(FIREBALL_SIZE, 16, 8); const fireballMaterial = new THREE.MeshBasicMaterial({ color: 0xffA500 }); const fireball = new THREE.Mesh(fireballGeometry, fireballMaterial); return fireball;
         }
 
-        // --- Tree Creation Functions (unchanged) ---
-        function createTree(x, z) { /* ... tree creation code ... */
+        // --- Tree Creation Functions ---
+        function createTree(x, z) {
              const trunkHeight = Math.random() * 2 + 1; const trunkRadius = 0.15; const foliageRadius = 0.8; const foliageHeight = 1.5; const tree = new THREE.Group(); const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight); const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial); trunk.position.y = trunkHeight / 2; trunk.castShadow = true; trunk.receiveShadow = true; tree.add(trunk); const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8); const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 }); const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial); foliage.position.y = trunkHeight + foliageHeight / 2 - 0.2; foliage.castShadow = true; foliage.receiveShadow = true; tree.add(foliage); tree.position.set(x, 0, z); scene.add(tree); return tree;
         }
-        function createTrees(count) { /* ... tree placement code ... */
+        function createTrees(count) {
              const range = 40; for (let i = 0; i < count; i++) { let x, z; do { x = Math.random() * range - range / 2; z = Math.random() * range - range / 2; } while (Math.abs(x) < 3 && Math.abs(z) < 3); createTree(x, z); }
         }
 
-        // --- Health Bar Update Function (unchanged) ---
-        function updateHealthBar() { /* ... health bar update code ... */
+        // --- Health Bar Update Function ---
+        function updateHealthBar() {
              if (!healthBarInnerElement) return; const healthPercentage = (currentHealth / MAX_HEALTH) * 100; healthBarInnerElement.style.width = healthPercentage + '%'; if (healthPercentage < 30) { healthBarInnerElement.style.backgroundColor = '#f44336'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; } else if (healthPercentage < 60) { healthBarInnerElement.style.backgroundColor = '#ff9800'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; } else { healthBarInnerElement.style.backgroundColor = '#4CAF50'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; }
         }
 
-        // --- Dummy Damage Function (unchanged) ---
+        // --- Dummy Damage Function ---
         function dummyTakeDamage(amount, sourcePosition) {
-            if (dummyCurrentHealth <= 0) return;
+            if (dummyCurrentHealth <= 0) return; // Don't damage if already dead
 
             dummyCurrentHealth -= amount;
-            dummyCurrentHealth = Math.max(0, dummyCurrentHealth);
+            dummyCurrentHealth = Math.max(0, dummyCurrentHealth); // Clamp health at 0
 
-            console.log(`Dummy Hit! Damage: ${amount}, Remaining Health: ${dummyCurrentHealth}`);
+            //console.log(`Dummy Hit! Damage: ${amount}, Remaining Health: ${dummyCurrentHealth}`);
 
             // --- Apply Knockback ---
             if (sourcePosition) {
+                // Calculate direction from hit source to dummy
                 const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize();
+                // Calculate impulse based on damage amount
                 const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER);
                 const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER;
 
+                // Apply impulse to dummy's velocity
                 dummyVelocity.x += horizontalImpulse.x;
                 dummyVelocity.z += horizontalImpulse.z;
-                dummyVelocity.y += verticalImpulse;
-                dummyIsOnGround = false;
-                console.log("Dummy Velocity after knockback:", dummyVelocity); // Keep DEBUG LOG active
+                dummyVelocity.y += verticalImpulse; // Add vertical knockback
+                dummyIsOnGround = false; // Dummy is now airborne
+                //console.log("Dummy Velocity after knockback:", dummyVelocity); // DEBUG LOG
             }
             // --- End Knockback ---
 
-            // Visual feedback
+            // Visual feedback: Flash white
             dummyIsHit = true;
             dummyHitTimer = DUMMY_HIT_DURATION;
             trainingDummy.material.color.setHex(DUMMY_HIT_COLOR);
 
             if (dummyCurrentHealth <= 0) {
                 console.log("Training Dummy Destroyed!");
-                trainingDummy.material.color.setHex(0x555555);
+                // Optional: Change color permanently when destroyed
+                trainingDummy.material.color.setHex(0x555555); // Dark grey
             }
         }
 
 
         // --- Event Handlers ---
-        function onWindowResize() { /* ... resize code ... */
+        function onWindowResize() {
              camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onKeyDown(event) { /* ... keydown code (unchanged) ... */
+        function onKeyDown(event) {
              keys[event.code] = true; const currentTime = performance.now(); if (event.code === 'Space') { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } } else if (event.code === 'KeyH') { if (currentHealth > 0) { currentHealth -= 10; currentHealth = Math.max(0, currentHealth); console.log("Health decreased:", currentHealth); updateHealthBar(); } } else if (event.code === 'KeyQ') { if (currentTime > lastShotTimeQ + Q_COOLDOWN) { shootProjectile('arrow'); lastShotTimeQ = currentTime; } } else if (event.code === 'KeyE') { if (currentTime > lastShotTimeE + E_COOLDOWN) { shootProjectile('fireball'); lastShotTimeE = currentTime; } }
         }
 
-        // Handles mouse button input (melee attack - MODIFIED for hit check logic)
+        // Handles mouse button input (melee attack)
         function onMouseDown(event) {
-            if (event.button === 0 && isPointerLocked) {
+            if (event.button === 0 && isPointerLocked) { // Left mouse button clicked and pointer locked
                 const currentTime = performance.now();
+                // Check if attack is off cooldown and not already attacking
                 if (!isMeleeAttacking && currentTime > lastMeleeAttackTime + MELEE_COOLDOWN) {
                     isMeleeAttacking = true;
                     meleeAttackTimer = MELEE_ATTACK_DURATION;
-                    swordMesh.visible = true;
+                    fistMesh.visible = true; // Show the fist
                     lastMeleeAttackTime = currentTime;
 
-                    // Melee Hit Detection
-                    if (trainingDummy && dummyCurrentHealth > 0) {
+                    // --- Melee Hit Detection ---
+                    if (trainingDummy && dummyCurrentHealth > 0) { // Check if dummy exists and is alive
                         const distance = player.position.distanceTo(trainingDummy.position);
                         if (distance < MELEE_RANGE) { // Check distance first
 
-                            // --- MODIFIED: Use Camera Direction for Angle Check ---
+                            // Use Camera Direction for Angle Check
                             const cameraDirection = new THREE.Vector3();
-                            camera.getWorldDirection(cameraDirection); // Use camera's aim direction
+                            camera.getWorldDirection(cameraDirection); // Get camera's aim direction
 
+                            // Vector from player to dummy
                             const vectorToDummy = trainingDummy.position.clone().sub(player.position).normalize();
                             const angle = cameraDirection.angleTo(vectorToDummy); // Angle between aim and target
 
-                            if (angle < MELEE_ANGLE_THRESHOLD) { // Check if aim is towards dummy
-                                console.log("Melee Hit Registered! Applying Knockback..."); // Keep DEBUG LOG active
-                                dummyTakeDamage(MELEE_DAMAGE, player.position);
+                            if (angle < MELEE_ANGLE_THRESHOLD) { // Check if aim is within the allowed angle
+                                console.log("Melee Hit Registered! Applying Knockback..."); // DEBUG LOG
+                                dummyTakeDamage(MELEE_DAMAGE, player.position); // Apply damage and knockback
                             }
-                            // --- End Modification ---
                         }
                     }
+                    // --- End Melee Hit Detection ---
                 }
             }
         }
 
 
-        function onPointerLockChange() { /* ... pointer lock change code ... */
+        function onPointerLockChange() {
              isPointerLocked = (document.pointerLockElement === renderer.domElement);
+             // Optional: Show/hide crosshair based on lock state
+             // document.getElementById('crosshair').style.display = isPointerLocked ? 'block' : 'none';
         }
-        function onPointerLockError() { /* ... pointer lock error code ... */
+        function onPointerLockError() {
              console.error('Pointer Lock Error'); isPointerLocked = false;
+             // document.getElementById('crosshair').style.display = 'none';
         }
-        function onMouseMove(event) { /* ... mouse move code ... */
-             if (!isPointerLocked) return; const deltaX = event.movementX || 0; const deltaY = event.movementY || 0; playerRotationY -= deltaX * MOUSE_SENSITIVITY; cameraRotationX -= deltaY * MOUSE_SENSITIVITY; cameraRotationX = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cameraRotationX));
+        function onMouseMove(event) {
+             if (!isPointerLocked) return; const deltaX = event.movementX || 0; const deltaY = event.movementY || 0; playerRotationY -= deltaX * MOUSE_SENSITIVITY; cameraRotationX -= deltaY * MOUSE_SENSITIVITY; cameraRotationX = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cameraRotationX)); // Clamp vertical rotation
         }
 
-        // --- Shooting Function (unchanged) ---
-        function shootProjectile(type) { /* ... shooting code ... */
+        // --- Shooting Function ---
+        function shootProjectile(type) {
              let mesh, speed, range, initialVelocityBoostY = 0, damage = 0; if (type === 'arrow') { mesh = createArrowMesh(); speed = ARROW_SPEED; range = ARROW_RANGE; initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY; damage = ARROW_DAMAGE; } else if (type === 'fireball') { mesh = createFireballMesh(); speed = FIREBALL_SPEED; range = FIREBALL_RANGE; damage = FIREBALL_DAMAGE; } else { return; } const direction = new THREE.Vector3(); camera.getWorldDirection(direction); const startPosition = new THREE.Vector3(); camera.getWorldPosition(startPosition); startPosition.add(direction.clone().multiplyScalar(1.0)); mesh.position.copy(startPosition); mesh.lookAt(mesh.position.clone().add(direction)); const velocity = direction.multiplyScalar(speed); velocity.y += initialVelocityBoostY; scene.add(mesh); projectiles.push({ mesh: mesh, velocity: velocity, type: type, range: range, origin: startPosition.clone(), damage: damage });
         }
 
@@ -415,8 +433,8 @@
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
-            const deltaTime = clock.getDelta();
-            const deltaMillis = deltaTime * 1000;
+            const deltaTime = clock.getDelta(); // Time since last frame in seconds
+            const deltaMillis = deltaTime * 1000; // Time since last frame in milliseconds
 
             updatePlayer(deltaTime);
             updateCamera();
@@ -428,34 +446,35 @@
         }
 
         // --- Update Functions ---
-        function updatePlayer(deltaTime) { /* ... player update code (unchanged) ... */
-            const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; playerOnGround = false; } } player.rotation.y = playerRotationY;
+        function updatePlayer(deltaTime) {
+             const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; playerOnGround = false; } } player.rotation.y = playerRotationY;
         }
 
-        function updateCamera() { /* ... camera update code (unchanged) ... */
-            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE); const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX); const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion); cameraOffset.applyQuaternion(combinedQuaternion); const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0)); camera.position.copy(lookAtTarget).add(cameraOffset); if (camera.position.y < MIN_CAMERA_HEIGHT) { camera.position.y = MIN_CAMERA_HEIGHT; } camera.lookAt(lookAtTarget);
+        function updateCamera() {
+             const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE); const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX); const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion); cameraOffset.applyQuaternion(combinedQuaternion); const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0)); camera.position.copy(lookAtTarget).add(cameraOffset); if (camera.position.y < MIN_CAMERA_HEIGHT) { camera.position.y = MIN_CAMERA_HEIGHT; } camera.lookAt(lookAtTarget);
         }
 
-        // --- Projectile Update Function (unchanged) ---
+        // --- Projectile Update Function ---
         function updateProjectiles(deltaTime) {
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const p = projectiles[i];
                 let projectileRemoved = false;
 
-                // Apply Gravity & Update Position/Orientation (same as before)
+                // Apply Gravity & Update Position/Orientation
                 if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; }
                 p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime));
                 if (p.type === 'arrow') { if (p.velocity.lengthSq() > 0.001) { const lookTarget = p.mesh.position.clone().add(p.velocity.clone().normalize()); p.mesh.lookAt(lookTarget); } }
 
-                // Projectile Collision Check
+                // Projectile Collision Check with Dummy
                 if (trainingDummy && dummyCurrentHealth > 0) {
                     const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position);
+                    // Simple sphere collision check
                     if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) {
-                        dummyTakeDamage(p.damage, p.mesh.position);
+                        dummyTakeDamage(p.damage, p.mesh.position); // Damage dummy, pass projectile pos for knockback
                         scene.remove(p.mesh);
                         projectiles.splice(i, 1);
                         projectileRemoved = true;
-                        continue;
+                        continue; // Skip range check if hit
                     }
                 }
 
@@ -471,36 +490,39 @@
         }
 
 
-        // --- Melee Attack Update Function (unchanged) ---
+        // --- Melee Attack Update Function ---
         function updateMeleeAttack(deltaMillis) {
             if (isMeleeAttacking) {
                 meleeAttackTimer -= deltaMillis;
                 if (meleeAttackTimer <= 0) {
                     isMeleeAttacking = false;
-                    swordMesh.visible = false;
+                    fistMesh.visible = false; // Hide the fist
                     meleeAttackTimer = 0;
                 }
+                // Optional: Add animation to the fist during the attack (e.g., move forward/back)
+                // const attackProgress = 1 - (meleeAttackTimer / MELEE_ATTACK_DURATION); // 0 to 1
+                // fistMesh.position.z = initialFistZ - Math.sin(attackProgress * Math.PI) * 0.5; // Example simple punch motion
             }
         }
 
-        // --- Dummy State Update Function (unchanged) ---
+        // --- Dummy State Update Function ---
         function updateDummyState(deltaTime, deltaMillis) {
             // Apply Gravity if airborne
             if (!dummyIsOnGround) {
                 dummyVelocity.y += DUMMY_GRAVITY * deltaTime;
             }
 
-            // Apply Linear Drag/Friction
+            // Apply Linear Drag/Friction to horizontal movement
             const dragFactor = 1.0 - DUMMY_LINEAR_DRAG * deltaTime;
-            if (dragFactor > 0) {
+            if (dragFactor > 0) { // Prevent velocity from flipping sign due to large deltaTime
                  dummyVelocity.x *= dragFactor;
                  dummyVelocity.z *= dragFactor;
-            } else {
+            } else { // If drag is too high, just stop horizontal movement
                  dummyVelocity.x = 0;
                  dummyVelocity.z = 0;
             }
 
-            // Update Position based on velocity
+            // Update Position based on velocity (only if alive or airborne)
             if (dummyCurrentHealth > 0 || !dummyIsOnGround) {
                  trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime));
             }
@@ -508,13 +530,13 @@
 
             // Ground Collision Check
             if (trainingDummy.position.y <= DUMMY_HEIGHT / 2) {
-                trainingDummy.position.y = DUMMY_HEIGHT / 2;
-                if (dummyVelocity.y < 0) {
-                    dummyVelocity.y = 0;
+                trainingDummy.position.y = DUMMY_HEIGHT / 2; // Place exactly on ground
+                if (dummyVelocity.y < 0) { // Only stop vertical velocity if moving downwards
+                    dummyVelocity.y = 0; // Stop falling
                     dummyIsOnGround = true;
                 }
             } else {
-                dummyIsOnGround = false;
+                dummyIsOnGround = false; // If above ground, it's not on the ground
             }
 
              // Update Hit Feedback Timer
@@ -523,7 +545,7 @@
                 if (dummyHitTimer <= 0) {
                     dummyIsHit = false;
                     dummyHitTimer = 0;
-                    if (dummyCurrentHealth > 0) {
+                    if (dummyCurrentHealth > 0) { // Only revert color if not destroyed
                          trainingDummy.material.color.setHex(DUMMY_ORIGINAL_COLOR);
                     }
                 }
@@ -540,4 +562,3 @@
     </script>
 </body>
 </html>
-
