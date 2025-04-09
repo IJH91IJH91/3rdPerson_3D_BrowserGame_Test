@@ -1,5 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
 
 
 /* need 
@@ -9,28 +7,26 @@
 2nd player / multiplayer / training dummy
 
 */
-
-
-
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic 3D RPG - Crosshair</title>
+    <title>Basic 3D RPG - Projectile Shooting</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #333; color: #fff; }
         canvas { display: block; }
-        #ui-container { /* Container for UI elements like instructions and health */
+        #ui-container {
             position: absolute;
             top: 10px;
             left: 10px;
             z-index: 10;
             display: flex;
-            flex-direction: column; /* Stack UI elements vertically */
-            gap: 10px; /* Space between UI elements */
-            pointer-events: none; /* Allow clicks to pass through container */
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
         }
-        #ui-container > div { /* Allow pointer events on direct children */
+        #ui-container > div {
              pointer-events: auto;
         }
         #instructions {
@@ -75,33 +71,30 @@
             color: #eee;
             margin-bottom: 2px;
          }
-
         /* Crosshair Styles */
         #crosshair {
-            position: fixed; /* Position relative to viewport */
+            position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%); /* Center precisely */
-            width: 2px;  /* Width of the vertical line */
-            height: 12px; /* Height of the vertical line */
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 12px;
             background-color: white;
-            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Outline effect */
-            z-index: 11; /* Ensure it's above the canvas */
-            pointer-events: none; /* Make it non-interactive */
+            box-shadow: 0 0 3px black, 0 0 1px black inset;
+            z-index: 11;
+            pointer-events: none;
         }
-
-        #crosshair::after { /* Horizontal line */
+        #crosshair::after {
             content: '';
             position: absolute;
-            top: 50%; /* Center vertically */
-            left: -5px; /* (12px - 2px) / 2 = 5px offset */
-            width: 12px; /* Width of the horizontal line */
-            height: 2px; /* Height of the horizontal line */
+            top: 50%;
+            left: -5px;
+            width: 12px;
+            height: 2px;
             background-color: white;
-            transform: translateY(-50%); /* Center precisely */
-            box-shadow: 0 0 3px black, 0 0 1px black inset; /* Outline effect */
+            transform: translateY(-50%);
+            box-shadow: 0 0 3px black, 0 0 1px black inset;
         }
-
     </style>
 </head>
 <body>
@@ -113,7 +106,7 @@
             S: Move Backward<br>
             D: Strafe Right<br>
             Space: Jump / Double Jump<br>
-            H: Decrease Health (Test)<br>
+            Q: Shoot Arrow<br>       E: Shoot Fireball<br>    H: Decrease Health (Test)<br>
             Mouse: Look Around
             <div id="pointer-lock-info">Click the screen to lock mouse control. Press ESC to unlock.</div>
         </div>
@@ -124,7 +117,6 @@
              </div>
         </div>
     </div>
-
     <div id="crosshair"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -135,6 +127,7 @@
         let playerVelocity = new THREE.Vector3();
         let playerOnGround = false;
         let jumpsPerformed = 0;
+        let projectiles = []; // Array to hold active projectiles
 
         // --- Player Stats & UI ---
         const MAX_HEALTH = 100;
@@ -146,7 +139,7 @@
         const PLAYER_WIDTH = 0.5;
         const PLAYER_DEPTH = 0.5;
         const PLAYER_SPEED = 5.0;
-        const GRAVITY = -15.0;
+        const GRAVITY = -15.0; // Player gravity
         const JUMP_FORCE = 7.0;
         const MAX_JUMPS = 2;
         const CAMERA_DISTANCE = 5;
@@ -157,15 +150,28 @@
         const MOUSE_SENSITIVITY = 0.002;
         const PITCH_LIMIT = Math.PI / 2 - 0.1;
 
+        // --- Projectile Constants ---
+        const ARROW_SPEED = 15.0;
+        const ARROW_GRAVITY = -5.0; // Specific gravity for arrows
+        const ARROW_RANGE = 50.0; // Max distance before removal
+        const ARROW_INITIAL_UP_VELOCITY = 1.0; // Slight upward boost
+        const FIREBALL_SPEED = 25.0;
+        const FIREBALL_RANGE = 100.0;
+        const FIREBALL_SIZE = 0.2;
+        const Q_COOLDOWN = 500; // milliseconds (0.5 seconds)
+        const E_COOLDOWN = 1000; // milliseconds (1 second)
+
         // --- Input State ---
         const keys = {};
         let playerRotationY = 0;
         let cameraRotationX = 0;
         let isPointerLocked = false;
+        let lastShotTimeQ = 0; // Timestamp of last Q shot
+        let lastShotTimeE = 0; // Timestamp of last E shot
 
         // --- Initialization ---
         function init() {
-            // Scene, Camera, Renderer setup (unchanged)
+            // Scene, Camera, Renderer setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
             scene.fog = new THREE.Fog(0x87ceeb, 10, 60);
@@ -175,7 +181,7 @@
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Lighting (unchanged)
+            // Lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -191,7 +197,7 @@
             directionalLight.shadow.camera.bottom = -25;
             scene.add(directionalLight);
 
-            // Ground Plane (unchanged)
+            // Ground Plane
             const groundGeometry = new THREE.PlaneGeometry(100, 100);
             const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide });
             ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -199,7 +205,7 @@
             ground.receiveShadow = true;
             scene.add(ground);
 
-            // Player Cube & Hat (unchanged)
+            // Player Cube & Hat
             const playerGeometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH);
             const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
             player = new THREE.Mesh(playerGeometry, playerMaterial);
@@ -214,12 +220,12 @@
             hat.castShadow = true;
             player.add(hat);
 
-            // Trees (unchanged)
+            // Trees
             createTrees(20);
 
             // Get UI Element References
             healthBarInnerElement = document.getElementById('health-bar-inner');
-            updateHealthBar(); // Initialize health bar display
+            updateHealthBar();
 
             // --- Event Listeners ---
             window.addEventListener('resize', onWindowResize, false);
@@ -231,69 +237,82 @@
             document.addEventListener('mousemove', onMouseMove, false);
         }
 
-        // --- Tree Creation Functions (unchanged) ---
-        function createTree(x, z) {
-            const trunkHeight = Math.random() * 2 + 1;
-            const trunkRadius = 0.15;
-            const foliageRadius = 0.8;
-            const foliageHeight = 1.5;
-            const tree = new THREE.Group();
-            const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight);
-            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.y = trunkHeight / 2;
-            trunk.castShadow = true;
-            trunk.receiveShadow = true;
-            tree.add(trunk);
-            const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8);
-            const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 });
-            const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-            foliage.position.y = trunkHeight + foliageHeight / 2 - 0.2;
-            foliage.castShadow = true;
-            foliage.receiveShadow = true;
-            tree.add(foliage);
-            tree.position.set(x, 0, z);
-            scene.add(tree);
-            return tree;
+        // --- Projectile Creation Functions ---
+        function createArrowMesh() {
+            const arrowLength = 0.8;
+            const shaftRadius = 0.02;
+            const shaftLength = arrowLength * 0.8; // Adjust proportion
+            const headLength = arrowLength * 0.2;
+            const headRadius = 0.05;
+
+            const arrowGroup = new THREE.Group(); // Group will be oriented by lookAt
+
+            // Shaft (Cylinder aligned with Y by default)
+            const shaftGeometry = new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength);
+            const shaftMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // Brown
+            const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+            // Rotate shaft geometry to align with Z axis
+            shaft.rotation.x = Math.PI / 2;
+            // Position shaft center along Z axis (behind the head)
+            shaft.position.z = shaftLength / 2;
+            shaft.castShadow = true;
+            arrowGroup.add(shaft);
+
+            // Head (Cone aligned with Y by default)
+            const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8);
+            const headMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA }); // Grey
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            // Rotate head geometry to align with Z axis
+            head.rotation.x = Math.PI / 2;
+            // Position head center along Z axis (at the front)
+            // Base of cone is at shaftLength, center is shaftLength + headLength / 2
+            head.position.z = shaftLength + headLength / 2;
+            head.castShadow = true;
+            arrowGroup.add(head);
+
+            // Adjust group position so the effective "tip" aligns better with lookAt target if needed
+            // (Optional: Move group slightly back if origin needs to be tail)
+            // arrowGroup.position.z = -arrowLength / 2; // Example: Center group origin
+
+            // DO NOT apply initial rotation to the group itself
+            // arrowGroup.rotation.x = Math.PI / 2; // REMOVED THIS LINE
+
+            return arrowGroup;
         }
-        function createTrees(count) {
-            const range = 40;
-            for (let i = 0; i < count; i++) {
-                let x, z;
-                do {
-                    x = Math.random() * range - range / 2;
-                    z = Math.random() * range - range / 2;
-                } while (Math.abs(x) < 3 && Math.abs(z) < 3);
-                createTree(x, z);
-            }
+
+
+        function createFireballMesh() {
+            const fireballGeometry = new THREE.SphereGeometry(FIREBALL_SIZE, 16, 8);
+            const fireballMaterial = new THREE.MeshBasicMaterial({ color: 0xffA500 }); // Orange
+            const fireball = new THREE.Mesh(fireballGeometry, fireballMaterial);
+            return fireball;
+        }
+
+        // --- Tree Creation Functions (unchanged) ---
+        function createTree(x, z) { /* ... tree creation code ... */
+             const trunkHeight = Math.random() * 2 + 1; const trunkRadius = 0.15; const foliageRadius = 0.8; const foliageHeight = 1.5; const tree = new THREE.Group(); const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight); const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial); trunk.position.y = trunkHeight / 2; trunk.castShadow = true; trunk.receiveShadow = true; tree.add(trunk); const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8); const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 }); const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial); foliage.position.y = trunkHeight + foliageHeight / 2 - 0.2; foliage.castShadow = true; foliage.receiveShadow = true; tree.add(foliage); tree.position.set(x, 0, z); scene.add(tree); return tree;
+        }
+        function createTrees(count) { /* ... tree placement code ... */
+             const range = 40; for (let i = 0; i < count; i++) { let x, z; do { x = Math.random() * range - range / 2; z = Math.random() * range - range / 2; } while (Math.abs(x) < 3 && Math.abs(z) < 3); createTree(x, z); }
         }
 
         // --- Health Bar Update Function (unchanged) ---
-        function updateHealthBar() {
-            if (!healthBarInnerElement) return;
-            const healthPercentage = (currentHealth / MAX_HEALTH) * 100;
-            healthBarInnerElement.style.width = healthPercentage + '%';
-            if (healthPercentage < 30) {
-                healthBarInnerElement.style.backgroundColor = '#f44336';
-                 healthBarInnerElement.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)';
-            } else if (healthPercentage < 60) {
-                healthBarInnerElement.style.backgroundColor = '#ff9800';
-                 healthBarInnerElement.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)';
-            } else {
-                healthBarInnerElement.style.backgroundColor = '#4CAF50';
-                 healthBarInnerElement.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)';
-            }
+        function updateHealthBar() { /* ... health bar update code ... */
+             if (!healthBarInnerElement) return; const healthPercentage = (currentHealth / MAX_HEALTH) * 100; healthBarInnerElement.style.width = healthPercentage + '%'; if (healthPercentage < 30) { healthBarInnerElement.style.backgroundColor = '#f44336'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; } else if (healthPercentage < 60) { healthBarInnerElement.style.backgroundColor = '#ff9800'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; } else { healthBarInnerElement.style.backgroundColor = '#4CAF50'; healthBarInnerElement.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; }
         }
 
-
-        // --- Event Handlers (unchanged) ---
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        // --- Event Handlers ---
+        function onWindowResize() { /* ... resize code ... */
+             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
         }
+
+        // Updated KeyDown Handler for Shooting
         function onKeyDown(event) {
-            keys[event.code] = true;
+            keys[event.code] = true; // Set movement keys state
+
+            const currentTime = performance.now(); // Get current time for cooldown checks
+
+            // Handle Jump Action
             if (event.code === 'Space') {
                 if (jumpsPerformed < MAX_JUMPS) {
                     playerVelocity.y = JUMP_FORCE;
@@ -301,6 +320,7 @@
                     jumpsPerformed++;
                 }
             }
+            // Handle Health Decrease (Test)
             else if (event.code === 'KeyH') {
                  if (currentHealth > 0) {
                     currentHealth -= 10;
@@ -309,79 +329,151 @@
                     updateHealthBar();
                  }
             }
+            // Handle Arrow Shot (Q)
+            else if (event.code === 'KeyQ') {
+                if (currentTime > lastShotTimeQ + Q_COOLDOWN) {
+                    shootProjectile('arrow');
+                    lastShotTimeQ = currentTime; // Update last shot time
+                }
+            }
+            // Handle Fireball Shot (E)
+            else if (event.code === 'KeyE') {
+                 if (currentTime > lastShotTimeE + E_COOLDOWN) {
+                    shootProjectile('fireball');
+                    lastShotTimeE = currentTime; // Update last shot time
+                 }
+            }
         }
-        function onPointerLockChange() {
-            isPointerLocked = (document.pointerLockElement === renderer.domElement);
+
+        function onPointerLockChange() { /* ... pointer lock change code ... */
+             isPointerLocked = (document.pointerLockElement === renderer.domElement);
         }
-        function onPointerLockError() {
-            console.error('Pointer Lock Error');
-            isPointerLocked = false;
+        function onPointerLockError() { /* ... pointer lock error code ... */
+             console.error('Pointer Lock Error'); isPointerLocked = false;
         }
-        function onMouseMove(event) {
-            if (!isPointerLocked) return;
-            const deltaX = event.movementX || 0;
-            const deltaY = event.movementY || 0;
-            playerRotationY -= deltaX * MOUSE_SENSITIVITY;
-            cameraRotationX -= deltaY * MOUSE_SENSITIVITY;
-            cameraRotationX = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cameraRotationX));
+        function onMouseMove(event) { /* ... mouse move code ... */
+             if (!isPointerLocked) return; const deltaX = event.movementX || 0; const deltaY = event.movementY || 0; playerRotationY -= deltaX * MOUSE_SENSITIVITY; cameraRotationX -= deltaY * MOUSE_SENSITIVITY; cameraRotationX = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, cameraRotationX));
+        }
+
+        // --- Shooting Function ---
+        function shootProjectile(type) {
+            let mesh, speed, range, initialVelocityBoostY = 0;
+
+            // 1. Create Mesh
+            if (type === 'arrow') {
+                mesh = createArrowMesh();
+                speed = ARROW_SPEED;
+                range = ARROW_RANGE;
+                initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY;
+            } else if (type === 'fireball') {
+                mesh = createFireballMesh();
+                speed = FIREBALL_SPEED;
+                range = FIREBALL_RANGE;
+            } else {
+                return; // Unknown type
+            }
+
+            // 2. Calculate Initial Position & Direction
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction); // Get camera's forward direction
+
+            // Start projectile slightly in front of the camera/player view center
+            const startPosition = new THREE.Vector3();
+            // Get camera position and move forward slightly along its direction
+            camera.getWorldPosition(startPosition);
+            startPosition.add(direction.clone().multiplyScalar(1.0)); // Start 1 unit in front
+
+            mesh.position.copy(startPosition);
+            // Ensure the mesh initial orientation matches the direction for lookAt
+            mesh.lookAt(mesh.position.clone().add(direction));
+
+
+            // 3. Calculate Initial Velocity
+            const velocity = direction.multiplyScalar(speed); // Use the original direction vector
+            velocity.y += initialVelocityBoostY; // Add slight upward boost for arrows
+
+            // 4. Add to Scene and Projectiles Array
+            scene.add(mesh);
+            projectiles.push({
+                mesh: mesh,
+                velocity: velocity,
+                type: type,
+                range: range,
+                origin: startPosition.clone() // Store origin for range check
+            });
+             // console.log(`Shot ${type}! Projectiles: ${projectiles.length}`); // Optional log
         }
 
 
-        // --- Game Loop (unchanged) ---
+        // --- Game Loop ---
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
             const deltaTime = clock.getDelta();
+
             updatePlayer(deltaTime);
             updateCamera();
+            updateProjectiles(deltaTime); // Update projectiles each frame
+
             renderer.render(scene, camera);
         }
 
-        // --- Update Functions (unchanged) ---
-        function updatePlayer(deltaTime) {
-            const moveDirection = new THREE.Vector3();
-            if (keys['KeyW']) moveDirection.z -= 1;
-            if (keys['KeyS']) moveDirection.z += 1;
-            if (keys['KeyA']) moveDirection.x -= 1;
-            if (keys['KeyD']) moveDirection.x += 1;
+        // --- Update Functions ---
+        function updatePlayer(deltaTime) { /* ... player update code ... */
+            const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; playerOnGround = false; } } player.rotation.y = playerRotationY;
+        }
 
-            if (moveDirection.lengthSq() > 0) {
-                moveDirection.normalize();
-                moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY);
-                moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime);
-                player.position.add(moveDirection);
-            }
+        function updateCamera() { /* ... camera update code ... */
+            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE); const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX); const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion); cameraOffset.applyQuaternion(combinedQuaternion); const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0)); camera.position.copy(lookAtTarget).add(cameraOffset); camera.lookAt(lookAtTarget);
+        }
 
-            playerVelocity.y += GRAVITY * deltaTime;
-            player.position.y += playerVelocity.y * deltaTime;
+        // --- Projectile Update Function ---
+        function updateProjectiles(deltaTime) {
+            // Iterate backwards for safe removal
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
 
-            if (player.position.y <= PLAYER_HEIGHT / 2) {
-                player.position.y = PLAYER_HEIGHT / 2;
-                if (playerVelocity.y <= 0) {
-                    playerVelocity.y = 0;
-                    if (!playerOnGround) {
-                         jumpsPerformed = 0;
-                    }
-                    playerOnGround = true;
+                // Apply Gravity (Arrows Only)
+                if (p.type === 'arrow') {
+                    p.velocity.y += ARROW_GRAVITY * deltaTime;
                 }
-            } else {
-                 if (playerOnGround) {
-                     if (jumpsPerformed === 0) jumpsPerformed = 1;
-                     playerOnGround = false;
-                 }
+
+                // Store current position before update
+                const currentPos = p.mesh.position.clone();
+
+                // Update Position
+                p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime));
+
+                // Update Orientation (Arrows Only)
+                if (p.type === 'arrow') {
+                    // Point the arrow from its previous position towards the new position
+                    // Or simply use the velocity vector if it's reliable
+                    if (p.velocity.lengthSq() > 0.001) {
+                         // Target point is slightly ahead along the velocity vector
+                         const lookTarget = p.mesh.position.clone().add(p.velocity.clone().normalize());
+                         p.mesh.lookAt(lookTarget);
+                    }
+                }
+
+                // Check Range Limit (distance from origin point)
+                const distanceFromOrigin = p.mesh.position.distanceTo(p.origin);
+                if (distanceFromOrigin > p.range) {
+                    // Remove projectile
+                    scene.remove(p.mesh);
+                    // Dispose geometry and material if needed for larger scenes
+                    // p.mesh.traverse(child => {
+                    //     if (child.isMesh) {
+                    //         child.geometry.dispose();
+                    //         child.material.dispose();
+                    //     }
+                    // });
+                    projectiles.splice(i, 1); // Remove from array
+                    // console.log(`Projectile removed (range). Remaining: ${projectiles.length}`); // Optional log
+                }
+                // Optional: Add collision detection here later
             }
-            player.rotation.y = playerRotationY;
         }
-        function updateCamera() {
-            const cameraOffset = new THREE.Vector3(0, 0, CAMERA_DISTANCE);
-            const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraRotationX);
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY);
-            const combinedQuaternion = yawQuaternion.multiply(pitchQuaternion);
-            cameraOffset.applyQuaternion(combinedQuaternion);
-            const lookAtTarget = player.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
-            camera.position.copy(lookAtTarget).add(cameraOffset);
-            camera.lookAt(lookAtTarget);
-        }
+
 
         // --- Start the game ---
         window.onload = function() {
