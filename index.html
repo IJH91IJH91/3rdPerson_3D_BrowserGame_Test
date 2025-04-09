@@ -1,403 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic 3D RPG - Split Screen P2 Attacks</title>
-    <style>
-        /* Basic styling */
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
-        canvas { display: block; }
-
-        /* --- UI Containers --- */
-        .ui-panel {
-            position: absolute;
-            top: 10px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: none;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.6);
-            border-radius: 8px;
-            max-width: 280px;
-        }
-        .ui-panel > div { pointer-events: auto; } /* Allow interaction with inner elements if needed */
-
-        /* P1 UI Panel (Top Left) */
-        #ui-panel-p1 { left: 10px; }
-
-        /* P2 UI Panel (Top Right) */
-        #ui-panel-p2 {
-            right: 10px;
-            align-items: flex-end; /* Align items to the right */
-        }
-        
-        #ui-panel-p2 #gamepad-status { text-align: right; } /* Align gamepad text right */
-
-
-        /* Instructions Box (Inside P1 Panel) */
-        #instructions {
-             background-color: rgba(0, 0, 0, 0.7);
-             padding: 10px 15px;
-             border-radius: 8px;
-             font-size: 12px; /* Even smaller */
-             line-height: 1.3;
-             margin-bottom: 5px; /* Spacing */
-             max-width: 260px;
-         }
-        #instructions strong { display: block; margin-bottom: 4px; font-size: 14px; }
-        #pointer-lock-info { margin-top: 6px; font-style: italic; font-size: 10px; color: #ccc; }
-        hr { border-color: #555; margin: 6px 0; }
-
-        /* Health Bars (General Styling) */
-       .health-bar-container {
-            width: 150px; height: 18px; background-color: #555; border-radius: 5px; border: 1px solid #222; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); margin-top: 3px;
-        }
-       .health-bar-inner {
-            height: 100%; width: 100%; background-color: #4CAF50; border-radius: 4px; transition: width 0.3s ease-out; box-shadow: 0 0 5px rgba(76, 175, 80, 0.7);
-        }
-       .health-text { font-size: 12px; color: #eee; margin-bottom: 2px;}
-
-        /* Gamepad Status (Inside P2 Panel) */
-        #gamepad-status { font-size: 13px; background-color: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; margin-top: 5px;}
-
-        /* Crosshairs */
-        .crosshair { position: fixed; transform: translate(-50%, -50%); width: 2px; height: 12px; background-color: white; box-shadow: 0 0 3px black, 0 0 1px black inset; z-index: 11; pointer-events: none; display: none; }
-        .crosshair::after { content: ''; position: absolute; top: 50%; left: -5px; width: 12px; height: 2px; background-color: white; transform: translateY(-50%); box-shadow: 0 0 3px black, 0 0 1px black inset; }
-        #crosshair-p1 { top: 50%; left: 25%; }
-        #crosshair-p2 { top: 50%; left: 75%; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Basic 3D RPG - Split Screen PvP Compact</title>
+<style>
+body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
+canvas { display: block; }
+.ui-panel { position: absolute; top: 10px; z-index: 10; display: flex; flex-direction: column; gap: 10px; pointer-events: none; padding: 10px; background-color: rgba(0, 0, 0, 0.6); border-radius: 8px; max-width: 280px; }
+.ui-panel > div { pointer-events: auto; }
+#ui-panel-p1 { left: 10px; }
+#ui-panel-p2 { right: 10px; align-items: flex-end; }
+#instructions { background-color: rgba(0, 0, 0, 0.7); padding: 10px 15px; border-radius: 8px; font-size: 12px; line-height: 1.3; margin-bottom: 5px; max-width: 260px; }
+#instructions strong { display: block; margin-bottom: 4px; font-size: 14px; }
+#pointer-lock-info { margin-top: 6px; font-style: italic; font-size: 10px; color: #ccc; }
+hr { border-color: #555; margin: 6px 0; }
+.health-bar-container { width: 150px; height: 18px; background-color: #555; border-radius: 5px; border: 1px solid #222; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); margin-top: 3px; }
+.health-bar-inner { height: 100%; width: 100%; background-color: #4CAF50; border-radius: 4px; transition: width 0.3s ease-out; box-shadow: 0 0 5px rgba(76, 175, 80, 0.7); }
+.health-text { font-size: 12px; color: #eee; margin-bottom: 2px;}
+#gamepad-status { font-size: 13px; background-color: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; margin-top: 5px; text-align: right; }
+.crosshair { position: fixed; transform: translate(-50%, -50%); width: 2px; height: 12px; background-color: white; box-shadow: 0 0 3px black, 0 0 1px black inset; z-index: 11; pointer-events: none; display: none; }
+.crosshair::after { content: ''; position: absolute; top: 50%; left: -5px; width: 12px; height: 2px; background-color: white; transform: translateY(-50%); box-shadow: 0 0 3px black, 0 0 1px black inset; }
+#crosshair-p1 { top: 50%; left: 25%; }
+#crosshair-p2 { top: 50%; left: 75%; }
+</style>
 </head>
 <body>
-    <div id="ui-panel-p1" class="ui-panel">
-        <div id="instructions">
-            <strong>P1 (Left): KBM</strong><br>
-            WASD:Move, Space:Jump, Mouse:Look<br>LMB:Punch, Q:Arrow, E:Fireball<br>H:Test P1 Dmg
-            <div id="pointer-lock-info">Click screen to lock mouse. ESC to unlock.</div>
-            <hr>
-            <strong>P2 (Right): Gamepad (Xbox Map)</strong><br>
-            L-Stick:Move, R-Stick:Look, A:Jump<br>RB:Punch, X:Arrow, Y:Fireball<br>J:Test P2 Dmg
-        </div>
-        <div>
-             <div id="health-text-p1" class="health-text">P1 HP</div>
-             <div id="health-bar-container-p1" class="health-bar-container">
-                 <div id="health-bar-inner-p1" class="health-bar-inner"></div>
-             </div>
-        </div>
-    </div>
-
-    <div id="ui-panel-p2" class="ui-panel">
-       <div>
-            <div id="health-text-p2" class="health-text">P2 HP</div>
-            <div id="health-bar-container-p2" class="health-bar-container">
-                <div id="health-bar-inner-p2" class="health-bar-inner"></div>
-            </div>
-        </div>
-        <div id="gamepad-status">Gamepad: Not Connected</div>
-    </div>
-
-    <div id="crosshair-p1" class="crosshair"></div>
-    <div id="crosshair-p2" class="crosshair"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
-    <script>
-        // --- Core Components ---
-        let scene, renderer; let cameraP1, cameraP2; let player, ground, trainingDummy; let projectiles = [];
-
-        // --- Player 1 State ---
-        let playerVelocity = new THREE.Vector3(); let playerOnGround = false; let jumpsPerformed = 0;
-        const MAX_HEALTH_P1 = 100; let currentHealthP1 = MAX_HEALTH_P1; let healthBarInnerElementP1;
-        let playerRotationY = 0; let cameraRotationX = 0; let isPointerLocked = false;
-        let lastMeleeAttackTimeP1 = 0; let lastShotTimeQP1 = 0; let lastShotTimeEP1 = 0;
-        let isMeleeAttackingP1 = false; let meleeAttackTimerP1 = 0; let fistMeshP1;
-
-         // --- Player 2 State ---
-        let player2; let player2Velocity = new THREE.Vector3(); let player2OnGround = false; let player2JumpsPerformed = 0;
-        const MAX_HEALTH_P2 = 100; let currentHealthP2 = MAX_HEALTH_P2; let healthBarInnerElementP2; // P2 Health
-        let player2CameraYaw = 0; let player2CameraPitch = 0;
-        let lastMeleeAttackTimeP2 = 0; let lastShotTimeQP2 = 0; let lastShotTimeEP2 = 0; // P2 Cooldowns
-        let isMeleeAttackingP2 = false; let meleeAttackTimerP2 = 0; let fistMeshP2; // P2 Melee State
-        let player2Hat;
-
-        // --- Constants ---
-        const PLAYER_HEIGHT = 1.0; const PLAYER_WIDTH = 0.5; const PLAYER_DEPTH = 0.5; const PLAYER_SPEED = 5.0; const GRAVITY = -15.0; const JUMP_FORCE = 7.0; const MAX_JUMPS = 2; const CAMERA_DISTANCE = 5; const CAMERA_HEIGHT_OFFSET = 0.8; const MIN_CAMERA_HEIGHT = 0.2; const HAT_HEIGHT = 0.2; const HAT_WIDTH = 0.3; const HAT_DEPTH = 0.4; const PITCH_LIMIT = Math.PI / 2 - 0.1;
-        const MOUSE_SENSITIVITY = 0.002;
-
-        // --- Projectile Constants (Shared) ---
-        const ARROW_SPEED = 15.0; const ARROW_GRAVITY = -5.0; const ARROW_RANGE = 50.0; const ARROW_INITIAL_UP_VELOCITY = 1.0; const ARROW_DAMAGE = 10; const FIREBALL_SPEED = 25.0; const FIREBALL_RANGE = 100.0; const FIREBALL_SIZE = 0.2; const FIREBALL_DAMAGE = 15; const Q_COOLDOWN = 500; const E_COOLDOWN = 1000; const PROJECTILE_HIT_RADIUS_APPROX = 0.3;
-
-        // --- Melee Attack Constants (Shared) ---
-        const MELEE_ATTACK_DURATION = 250; const MELEE_COOLDOWN = 400; const MELEE_DAMAGE = 25; const MELEE_RANGE = 3.0; const MELEE_ANGLE_THRESHOLD = Math.PI / 3; const FIST_SIZE_X = 0.4; const FIST_SIZE_Y = 0.4; const FIST_SIZE_Z = 0.4;
-
-        // --- Training Dummy Constants ---
-        const DUMMY_RADIUS = 0.5; const DUMMY_HEIGHT = 1.8; const DUMMY_MAX_HEALTH = 200; const DUMMY_HIT_DURATION = 150; const DUMMY_ORIGINAL_COLOR = 0xdeb887; const DUMMY_HIT_COLOR = 0xffffff; const DUMMY_GRAVITY = GRAVITY * 0.9; const DUMMY_LINEAR_DRAG = 1.0; const KNOCKBACK_FORCE_MULTIPLIER = 0.3; const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2;
-
-        // --- Dummy State ---
-        let dummyCurrentHealth = DUMMY_MAX_HEALTH; let dummyIsHit = false; let dummyHitTimer = 0; let dummyVelocity = new THREE.Vector3(); let dummyIsOnGround = true;
-
-        // --- P2: Gamepad State ---
-        let gamepad = null; let gamepadStatusElement;
-        const GAMEPAD_AXIS_DEADZONE = 0.15; const GAMEPAD_LOOK_SENSITIVITY = 0.03;
-        let player2JumpButtonPressedLastFrame = false;
-        // Store more button states
-        let gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false };
-
-        // --- UI Elements ---
-        let crosshairP1, crosshairP2; const keys = {};
-
-        // --- Initialization ---
-        function init() {
-            scene = new THREE.Scene(); scene.background = new THREE.Color(0x87ceeb); scene.fog = new THREE.Fog(0x87ceeb, 10, 60);
-            const aspect = (window.innerWidth / 2) / window.innerHeight;
-            cameraP1 = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000); cameraP2 = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.setScissorTest(true); document.body.appendChild(renderer.domElement);
-
-            // Lighting & Ground
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight); const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); directionalLight.position.set(10, 15, 10); directionalLight.castShadow = true; /* ... shadow map setup ... */ scene.add(directionalLight); const groundGeometry = new THREE.PlaneGeometry(100, 100); const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide }); ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-
-            // Player 1 Setup
-            const playerGeometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH); const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); player = new THREE.Mesh(playerGeometry, playerMaterial); player.castShadow = true; player.position.set(-2, PLAYER_HEIGHT / 2, 0); scene.add(player); const hatGeometry = new THREE.BoxGeometry(HAT_WIDTH, HAT_HEIGHT, HAT_DEPTH); const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff }); const hat = new THREE.Mesh(hatGeometry, hatMaterial); hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; hat.castShadow = true; player.add(hat);
-            fistMeshP1 = createFistMesh(); fistMeshP1.visible = false; fistMeshP1.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); player.add(fistMeshP1);
-
-            // Player 2 Setup
-            const player2Geometry = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH); const player2Material = new THREE.MeshStandardMaterial({ color: 0x00ff00 }); player2 = new THREE.Mesh(player2Geometry, player2Material); player2.castShadow = true; player2.position.set(2, PLAYER_HEIGHT / 2, 0); scene.add(player2); const hat2Material = new THREE.MeshStandardMaterial({ color: 0xffff00 }); player2Hat = new THREE.Mesh(hatGeometry, hat2Material); player2Hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; player2Hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; player2Hat.castShadow = true; player2.add(player2Hat);
-            fistMeshP2 = createFistMesh(); fistMeshP2.visible = false; fistMeshP2.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); player2.add(fistMeshP2); // Add fist to P2
-
-            // Training Dummy
-            trainingDummy = createDummyMesh(); trainingDummy.position.set(0, DUMMY_HEIGHT / 2, -8); scene.add(trainingDummy);
-
-            // Trees
-            createTrees(20);
-
-            // Get UI References
-            healthBarInnerElementP1 = document.getElementById('health-bar-inner-p1');
-            healthBarInnerElementP2 = document.getElementById('health-bar-inner-p2'); // P2 HP Bar
-            updateHealthBarP1(); // Initialize P1 bar
-            updateHealthBarP2(); // Initialize P2 bar
-            gamepadStatusElement = document.getElementById('gamepad-status');
-            crosshairP1 = document.getElementById('crosshair-p1'); crosshairP2 = document.getElementById('crosshair-p2');
-
-            // Event Listeners
-            window.addEventListener('resize', onWindowResize, false); document.addEventListener('keydown', onKeyDown, false); document.addEventListener('keyup', (event) => { keys[event.code] = false; }); renderer.domElement.addEventListener('click', () => { if (!isPointerLocked) { renderer.domElement.requestPointerLock(); } }, false); document.addEventListener('mousedown', onMouseDown, false); document.addEventListener('pointerlockchange', onPointerLockChange, false); document.addEventListener('pointerlockerror', onPointerLockError, false); document.addEventListener('mousemove', onMouseMove, false); window.addEventListener("gamepadconnected", handleGamepadConnected); window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
-
-            updateCrosshairVisibility(); updateGamepadStatusUI();
-        }
-
-        // --- Helper Functions ---
-        function createFistMesh() { const fistGeometry = new THREE.BoxGeometry(FIST_SIZE_X, FIST_SIZE_Y, FIST_SIZE_Z); const fistMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, roughness: 0.6, metalness: 0.3 }); const fist = new THREE.Mesh(fistGeometry, fistMaterial); fist.castShadow = true; return fist; }
-        function createDummyMesh() { const dummyMaterial = new THREE.MeshStandardMaterial({ color: DUMMY_ORIGINAL_COLOR, roughness: 0.8 }); const dummyGeometry = new THREE.CylinderGeometry(DUMMY_RADIUS, DUMMY_RADIUS, DUMMY_HEIGHT, 16); const dummy = new THREE.Mesh(dummyGeometry, dummyMaterial); dummy.castShadow = true; dummy.receiveShadow = true; dummy.userData = { type: 'dummy', health: DUMMY_MAX_HEALTH }; return dummy; }
-        function createArrowMesh() { const group=new THREE.Group(); const shaftGeo=new THREE.CylinderGeometry(.02,.02,.8*.8); const shaftMat=new THREE.MeshStandardMaterial({color:0x8B4513}); const shaft=new THREE.Mesh(shaftGeo,shaftMat); shaft.rotation.x=Math.PI/2; shaft.position.z=.8*.8/2; shaft.castShadow=true; group.add(shaft); const headGeo=new THREE.ConeGeometry(.05,.8*.2,8); const headMat=new THREE.MeshStandardMaterial({color:0xAAAAAA}); const head=new THREE.Mesh(headGeo,headMat); head.rotation.x=Math.PI/2; head.position.z=.8*.8+.8*.2/2; head.castShadow=true; group.add(head); return group; }
-        function createFireballMesh() { return new THREE.Mesh(new THREE.SphereGeometry(FIREBALL_SIZE,16,8), new THREE.MeshBasicMaterial({color:0xffA500})); }
-        function createTree(x,z){ const trunkH=Math.random()*2+1; const tree=new THREE.Group(); const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,trunkH), new THREE.MeshStandardMaterial({color:0x8B4513})); trunk.position.y=trunkH/2; trunk.castShadow=true; trunk.receiveShadow=true; tree.add(trunk); const foliage=new THREE.Mesh(new THREE.ConeGeometry(.8,1.5,8), new THREE.MeshStandardMaterial({color:0x006400})); foliage.position.y=trunkH+1.5/2-.2; foliage.castShadow=true; foliage.receiveShadow=true; tree.add(foliage); tree.position.set(x,0,z); scene.add(tree); return tree; }
-        function createTrees(c){ const r=40; for(let i=0;i<c;i++){ let x,z; do{x=Math.random()*r-r/2; z=Math.random()*r-r/2;}while(Math.abs(x)<4&&Math.abs(z)<4); createTree(x,z);}}
-        function dummyTakeDamage(amount, sourcePosition) { if (dummyCurrentHealth <= 0) return; dummyCurrentHealth -= amount; dummyCurrentHealth = Math.max(0, dummyCurrentHealth); if (sourcePosition) { const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER; dummyVelocity.x += horizontalImpulse.x; dummyVelocity.z += horizontalImpulse.z; dummyVelocity.y += verticalImpulse; dummyIsOnGround = false; } dummyIsHit = true; dummyHitTimer = DUMMY_HIT_DURATION; trainingDummy.material.color.setHex(DUMMY_HIT_COLOR); if (dummyCurrentHealth <= 0) { console.log("Training Dummy Destroyed!"); trainingDummy.material.color.setHex(0x555555); } }
-        // --- End Helper Functions ---
-
-        // --- UI Update Functions ---
-        function updateHealthBarP1() { updateHealthBarGeneric(healthBarInnerElementP1, currentHealthP1, MAX_HEALTH_P1); }
-        function updateHealthBarP2() { updateHealthBarGeneric(healthBarInnerElementP2, currentHealthP2, MAX_HEALTH_P2); }
-
-        function updateHealthBarGeneric(element, current, max) {
-             if (!element) return;
-             const percentage = (current / max) * 100;
-             element.style.width = percentage + '%';
-             if (percentage < 30) { element.style.backgroundColor = '#f44336'; element.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; }
-             else if (percentage < 60) { element.style.backgroundColor = '#ff9800'; element.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; }
-             else { element.style.backgroundColor = '#4CAF50'; element.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; }
-        }
-        function updateGamepadStatusUI() { /* ... unchanged ... */ }
-        function updateCrosshairVisibility() { /* ... unchanged ... */ }
-
-        // --- Event Handlers ---
-        function onWindowResize() { renderer.setSize(window.innerWidth, window.innerHeight); }
-        function onKeyDown(event) { // Handles P1 Keyboard and Debug keys
-             keys[event.code] = true; const currentTime = performance.now();
-             // P1 Controls
-             if (event.code === 'Space') { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } }
-             else if (event.code === 'KeyQ') { if (currentTime > lastShotTimeQP1 + Q_COOLDOWN) { shootProjectileP1('arrow'); lastShotTimeQP1 = currentTime; } }
-             else if (event.code === 'KeyE') { if (currentTime > lastShotTimeEP1 + E_COOLDOWN) { shootProjectileP1('fireball'); lastShotTimeEP1 = currentTime; } }
-             // Debug Damage
-             else if (event.code === 'KeyH') { if (currentHealthP1 > 0) { currentHealthP1 -= 10; currentHealthP1 = Math.max(0, currentHealthP1); console.log("P1 Health:", currentHealthP1); updateHealthBarP1(); } }
-             else if (event.code === 'KeyJ') { if (currentHealthP2 > 0) { currentHealthP2 -= 10; currentHealthP2 = Math.max(0, currentHealthP2); console.log("P2 Health:", currentHealthP2); updateHealthBarP2(); } }
-        }
-        function onMouseDown(event) { // P1 Melee
-             if (event.button === 0 && isPointerLocked) { const currentTime = performance.now();
-                 if (!isMeleeAttackingP1 && currentTime > lastMeleeAttackTimeP1 + MELEE_COOLDOWN) {
-                     isMeleeAttackingP1 = true; meleeAttackTimerP1 = MELEE_ATTACK_DURATION; fistMeshP1.visible = true; lastMeleeAttackTimeP1 = currentTime;
-                     // P1 Melee Hit Detection
-                     if (trainingDummy && dummyCurrentHealth > 0) { const distance = player.position.distanceTo(trainingDummy.position); if (distance < MELEE_RANGE) { const dir = new THREE.Vector3(); cameraP1.getWorldDirection(dir); const vecTo = trainingDummy.position.clone().sub(player.position).normalize(); if (dir.angleTo(vecTo) < MELEE_ANGLE_THRESHOLD) { console.log("P1 Melee Hit!"); dummyTakeDamage(MELEE_DAMAGE, player.position); } } } // Pass P1 pos
-                 }
-             }
-        }
-        function onPointerLockChange() { isPointerLocked = (document.pointerLockElement === renderer.domElement); updateCrosshairVisibility(); }
-        function onPointerLockError() { console.error('Pointer Lock Error'); isPointerLocked = false; updateCrosshairVisibility(); }
-        function onMouseMove(event) { if (!isPointerLocked) return; const dX=event.movementX||0; const dY=event.movementY||0; playerRotationY-=dX*MOUSE_SENSITIVITY; cameraRotationX-=dY*MOUSE_SENSITIVITY; cameraRotationX=Math.max(-PITCH_LIMIT,Math.min(PITCH_LIMIT,cameraRotationX)); }
-        function handleGamepadConnected(event) { console.log("Gamepad connected:", event.gamepad.id); if (!gamepad) gamepad = event.gamepad; updateGamepadStatusUI(); updateCrosshairVisibility(); }
-        function handleGamepadDisconnected(event) { console.log("Gamepad disconnected:", event.gamepad.id); if (gamepad && gamepad.index === event.gamepad.index) gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); }
-        // --- End Event Handlers ---
-
-        // --- P1 Shooting Function ---
-        function shootProjectileP1(type) { shootProjectileGeneric(type, cameraP1); }
-        // --- P2 Shooting Function ---
-        function shootProjectileP2(type) { shootProjectileGeneric(type, cameraP2); }
-
-        // --- Generic Shooting Function ---
-        function shootProjectileGeneric(type, sourceCamera) {
-            let mesh, speed, range, initialVelocityBoostY = 0, damage = 0;
-            if (type === 'arrow') { mesh = createArrowMesh(); speed = ARROW_SPEED; range = ARROW_RANGE; initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY; damage = ARROW_DAMAGE; }
-            else if (type === 'fireball') { mesh = createFireballMesh(); speed = FIREBALL_SPEED; range = FIREBALL_RANGE; damage = FIREBALL_DAMAGE; }
-            else { return; }
-
-            const direction = new THREE.Vector3(); sourceCamera.getWorldDirection(direction);
-            const startPosition = new THREE.Vector3(); sourceCamera.getWorldPosition(startPosition);
-            startPosition.add(direction.clone().multiplyScalar(1.0)); // Start slightly in front of camera
-
-            mesh.position.copy(startPosition);
-            mesh.lookAt(mesh.position.clone().add(direction));
-            const velocity = direction.multiplyScalar(speed);
-            velocity.y += initialVelocityBoostY; // Add initial upward arc for arrows
-
-            scene.add(mesh);
-            projectiles.push({ mesh: mesh, velocity: velocity, type: type, range: range, origin: startPosition.clone(), damage: damage });
-        }
-
-        // --- Game Loop ---
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const deltaTime = clock.getDelta(); const deltaMillis = deltaTime * 1000;
-            const currentTime = performance.now(); // Get time for cooldowns
-
-            handleGamepadInput(); // Read gamepad state
-
-            // Update Logic
-            updatePlayerP1(deltaTime);
-            updatePlayerP2(deltaTime);
-            updateCameraP1();
-            updateCameraP2();
-            updateAttacksP1(currentTime, deltaMillis); // P1 attack timers/logic
-            updateAttacksP2(currentTime, deltaMillis); // P2 attack timers/logic
-            updateProjectiles(deltaTime);
-            updateDummyState(deltaTime, deltaMillis);
-
-            // Rendering
-            const screenWidth=window.innerWidth; const screenHeight=window.innerHeight; const halfWidth=Math.floor(screenWidth/2);
-            renderer.setViewport(0,0,halfWidth,screenHeight); renderer.setScissor(0,0,halfWidth,screenHeight); cameraP1.aspect=halfWidth/screenHeight; cameraP1.updateProjectionMatrix(); renderer.render(scene,cameraP1);
-            renderer.setViewport(halfWidth,0,screenWidth-halfWidth,screenHeight); renderer.setScissor(halfWidth,0,screenWidth-halfWidth,screenHeight); cameraP2.aspect=(screenWidth-halfWidth)/screenHeight; cameraP2.updateProjectionMatrix(); renderer.render(scene,cameraP2);
-        }
-
-        // --- Update Functions ---
-        function updatePlayerP1(deltaTime) { /* ... P1 movement/physics ... */
-            const moveDirection = new THREE.Vector3(); if (keys['KeyW']) moveDirection.z -= 1; if (keys['KeyS']) moveDirection.z += 1; if (keys['KeyA']) moveDirection.x -= 1; if (keys['KeyD']) moveDirection.x += 1; if (moveDirection.lengthSq() > 0) { moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); player.position.add(moveDirection); } playerVelocity.y += GRAVITY * deltaTime; player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; if (playerVelocity.y <= 0) { playerVelocity.y = 0; if (!playerOnGround) { jumpsPerformed = 0; } playerOnGround = true; } } else { if (playerOnGround) { if (jumpsPerformed === 0) jumpsPerformed = 1; } playerOnGround = false; } player.rotation.y = playerRotationY;
-        }
-        function updatePlayerP2(deltaTime) { /* ... P2 movement/physics ... */
-             if (!player2) return; const moveDirectionP2 = new THREE.Vector3(gamepadInputState.moveX, 0, gamepadInputState.moveZ); if (moveDirectionP2.lengthSq() > 0) { moveDirectionP2.normalize(); moveDirectionP2.applyAxisAngle(new THREE.Vector3(0, 1, 0), player2CameraYaw); moveDirectionP2.multiplyScalar(PLAYER_SPEED * deltaTime); player2.position.add(moveDirectionP2); } player2.rotation.y = player2CameraYaw; player2Velocity.y += GRAVITY * deltaTime; player2.position.y += player2Velocity.y * deltaTime; if (player2.position.y <= PLAYER_HEIGHT / 2) { player2.position.y = PLAYER_HEIGHT / 2; if (player2Velocity.y <= 0) { player2Velocity.y = 0; if (!player2OnGround) { player2JumpsPerformed = 0; } player2OnGround = true; } } else { if (player2OnGround) { if (player2JumpsPerformed === 0) player2JumpsPerformed = 1; } player2OnGround = false; } if (gamepadInputState.jump && !player2JumpButtonPressedLastFrame) { if (player2JumpsPerformed < MAX_JUMPS) { player2Velocity.y = JUMP_FORCE; player2OnGround = false; player2JumpsPerformed++; } } player2JumpButtonPressedLastFrame = gamepadInputState.jump;
-        }
-        function updateCameraP1() { /* ... P1 camera positioning ... */
-            const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),cameraRotationX); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),playerRotationY); offset.applyQuaternion(qY.multiply(qX)); const target=player.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP1.position.copy(target).add(offset); if(cameraP1.position.y<MIN_CAMERA_HEIGHT)cameraP1.position.y=MIN_CAMERA_HEIGHT; cameraP1.lookAt(target);
-        }
-        function updateCameraP2() { /* ... P2 camera positioning ... */
-            if(!player2) return; const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),player2CameraPitch); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),player2CameraYaw); offset.applyQuaternion(qY.multiply(qX)); const target=player2.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP2.position.copy(target).add(offset); if(cameraP2.position.y<MIN_CAMERA_HEIGHT)cameraP2.position.y=MIN_CAMERA_HEIGHT; cameraP2.lookAt(target);
-        }
-
-        function handleGamepadInput() { // Read P2 inputs
-             if (!gamepad) { gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false }; return; }
-             const currentGamepad = navigator.getGamepads()[gamepad.index];
-             if (!currentGamepad) { gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); return; }
-             gamepad = currentGamepad;
-
-             // Axes (L: 0,1 ; R: 2,3)
-             let mX = gamepad.axes[0] || 0; let mZ = gamepad.axes[1] || 0;
-             let lX = gamepad.axes[2] || 0; let lY = gamepad.axes[3] || 0;
-             if (Math.abs(mX) < GAMEPAD_AXIS_DEADZONE) mX = 0; if (Math.abs(mZ) < GAMEPAD_AXIS_DEADZONE) mZ = 0;
-             if (Math.abs(lX) < GAMEPAD_AXIS_DEADZONE) lX = 0; if (Math.abs(lY) < GAMEPAD_AXIS_DEADZONE) lY = 0;
-
-             // Buttons (A=0, X=2, Y=3, RB=5 - Standard Xbox mapping)
-             const jump = gamepad.buttons[0]?.pressed || false;
-             const melee = gamepad.buttons[5]?.pressed || false; // RB
-             const shootArrow = gamepad.buttons[2]?.pressed || false; // X
-             const shootFireball = gamepad.buttons[3]?.pressed || false; // Y
-
-             // Update Camera Rotation directly
-             player2CameraYaw -= lX * GAMEPAD_LOOK_SENSITIVITY;
-             player2CameraPitch -= lY * GAMEPAD_LOOK_SENSITIVITY;
-             player2CameraPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, player2CameraPitch));
-
-             gamepadInputState = { moveX: mX, moveZ: mZ, lookX: lX, lookY: lY, jump: jump, melee: melee, shootArrow: shootArrow, shootFireball: shootFireball };
-        }
-
-        // --- Attack Update Functions ---
-        function updateAttacksP1(currentTime, deltaMillis) {
-            // P1 Melee Timer
-            if (isMeleeAttackingP1) { meleeAttackTimerP1 -= deltaMillis; if (meleeAttackTimerP1 <= 0) { isMeleeAttackingP1 = false; fistMeshP1.visible = false; } }
-            // P1 Cooldowns are checked in onKeyDown/onMouseDown
-        }
-
-        function updateAttacksP2(currentTime, deltaMillis) {
-             if (!player2) return; // Safety check
-
-             // P2 Melee Action & Hit Detection
-             if (gamepadInputState.melee && !isMeleeAttackingP2 && currentTime > lastMeleeAttackTimeP2 + MELEE_COOLDOWN) {
-                 isMeleeAttackingP2 = true;
-                 meleeAttackTimerP2 = MELEE_ATTACK_DURATION;
-                 fistMeshP2.visible = true;
-                 lastMeleeAttackTimeP2 = currentTime;
-                 console.log("P2 Punch!");
-
-                 // P2 Melee Hit Detection
-                 if (trainingDummy && dummyCurrentHealth > 0) {
-                     const distance = player2.position.distanceTo(trainingDummy.position);
-                     if (distance < MELEE_RANGE) {
-                         const direction = new THREE.Vector3();
-                         cameraP2.getWorldDirection(direction); // Use P2's camera
-                         const vectorToDummy = trainingDummy.position.clone().sub(player2.position).normalize();
-                         const angle = direction.angleTo(vectorToDummy);
-                         if (angle < MELEE_ANGLE_THRESHOLD) {
-                             console.log("P2 Melee Hit Registered!");
-                             dummyTakeDamage(MELEE_DAMAGE, player2.position); // Pass P2's position
-                         }
-                     }
-                 }
-             }
-
-             // P2 Melee Timer Update
-             if (isMeleeAttackingP2) {
-                 meleeAttackTimerP2 -= deltaMillis;
-                 if (meleeAttackTimerP2 <= 0) {
-                     isMeleeAttackingP2 = false;
-                     fistMeshP2.visible = false;
-                     meleeAttackTimerP2 = 0;
-                 }
-             }
-
-             // P2 Ranged Attacks
-             if (gamepadInputState.shootArrow && currentTime > lastShotTimeQP2 + Q_COOLDOWN) {
-                 console.log("P2 Arrow!");
-                 shootProjectileP2('arrow');
-                 lastShotTimeQP2 = currentTime;
-             }
-             if (gamepadInputState.shootFireball && currentTime > lastShotTimeEP2 + E_COOLDOWN) {
-                  console.log("P2 Fireball!");
-                 shootProjectileP2('fireball');
-                 lastShotTimeEP2 = currentTime;
-             }
-        }
-        // --- End Attack Updates ---
-
-        function updateProjectiles(deltaTime) { /* ... projectile movement, collision, range check ... */
-             for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; let projectileRemoved = false; if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; } p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime)); if (p.type === 'arrow' && p.velocity.lengthSq() > 0.001) { p.mesh.lookAt(p.mesh.position.clone().add(p.velocity.clone().normalize())); } if (trainingDummy && dummyCurrentHealth > 0) { const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position); if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) { dummyTakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved) { const distanceFromOrigin = p.mesh.position.distanceTo(p.origin); if (distanceFromOrigin > p.range) { scene.remove(p.mesh); projectiles.splice(i, 1); } } }
-        }
-        function updateDummyState(deltaTime, deltaMillis) { /* ... dummy physics, hit flash ... */
-             if (!dummyIsOnGround) { dummyVelocity.y += DUMMY_GRAVITY * deltaTime; } const dragFactor = 1.0 - DUMMY_LINEAR_DRAG * deltaTime; if (dragFactor > 0) { dummyVelocity.x *= dragFactor; dummyVelocity.z *= dragFactor; } else { dummyVelocity.x = 0; dummyVelocity.z = 0; } if (dummyCurrentHealth > 0 || !dummyIsOnGround) { trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime)); } if (trainingDummy.position.y <= DUMMY_HEIGHT / 2) { trainingDummy.position.y = DUMMY_HEIGHT / 2; if (dummyVelocity.y < 0) { dummyVelocity.y = 0; dummyIsOnGround = true; } } else { dummyIsOnGround = false; } if (dummyIsHit) { dummyHitTimer -= deltaMillis; if (dummyHitTimer <= 0) { dummyIsHit = false; dummyHitTimer = 0; if (dummyCurrentHealth > 0) { trainingDummy.material.color.setHex(DUMMY_ORIGINAL_COLOR); } } }
-        }
-        // --- End Update Functions ---
-
-        // --- Start ---
-        window.onload = function() { init(); animate(); }
-
-    </script>
+<div id="ui-panel-p1" class="ui-panel"><div id="instructions"><strong>P1 (Left): KBM</strong><br>WASD:Move, Space:Jump, Mouse:Look<br>LMB:Punch, Q:Arrow, E:Fireball<br>H:Test P1 Dmg<div id="pointer-lock-info">Click screen to lock mouse. ESC to unlock.</div><hr><strong>P2 (Right): Gamepad (Xbox Map)</strong><br>L-Stick:Move, R-Stick:Look, A:Jump<br>RB:Punch, X:Arrow, Y:Fireball<br>J:Test P2 Dmg</div><div><div id="health-text-p1" class="health-text">P1 HP</div><div id="health-bar-container-p1" class="health-bar-container"><div id="health-bar-inner-p1" class="health-bar-inner"></div></div></div></div>
+<div id="ui-panel-p2" class="ui-panel"><div><div id="health-text-p2" class="health-text">P2 HP</div><div id="health-bar-container-p2" class="health-bar-container"><div id="health-bar-inner-p2" class="health-bar-inner"></div></div></div><div id="gamepad-status">Gamepad: Not Connected</div></div>
+<div id="crosshair-p1" class="crosshair"></div>
+<div id="crosshair-p2" class="crosshair"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+let scene, renderer; let cameraP1, cameraP2; let player, ground, trainingDummy; let projectiles = [];
+let playerVelocity = new THREE.Vector3(); let playerOnGround = false; let jumpsPerformed = 0;
+const MAX_HEALTH_P1 = 100; let currentHealthP1 = MAX_HEALTH_P1; let healthBarInnerElementP1;
+let playerRotationY = 0; let cameraRotationX = 0; let isPointerLocked = false;
+let lastMeleeAttackTimeP1 = 0; let lastShotTimeQP1 = 0; let lastShotTimeEP1 = 0;
+let isMeleeAttackingP1 = false; let meleeAttackTimerP1 = 0; let fistMeshP1;
+let player2; let player2Velocity = new THREE.Vector3(); let player2OnGround = false; let player2JumpsPerformed = 0;
+const MAX_HEALTH_P2 = 100; let currentHealthP2 = MAX_HEALTH_P2; let healthBarInnerElementP2;
+let player2CameraYaw = 0; let player2CameraPitch = 0;
+let lastMeleeAttackTimeP2 = 0; let lastShotTimeQP2 = 0; let lastShotTimeEP2 = 0;
+let isMeleeAttackingP2 = false; let meleeAttackTimerP2 = 0; let fistMeshP2;
+let player2Hat;
+const PLAYER_HEIGHT = 1.0; const PLAYER_WIDTH = 0.5; const PLAYER_DEPTH = 0.5; const PLAYER_SPEED = 5.0; const GRAVITY = -15.0; const JUMP_FORCE = 7.0; const MAX_JUMPS = 2; const CAMERA_DISTANCE = 5; const CAMERA_HEIGHT_OFFSET = 0.8; const MIN_CAMERA_HEIGHT = 0.2; const HAT_HEIGHT = 0.2; const HAT_WIDTH = 0.3; const HAT_DEPTH = 0.4; const PITCH_LIMIT = Math.PI / 2 - 0.1;
+const MOUSE_SENSITIVITY = 0.002;
+const ARROW_SPEED = 15.0; const ARROW_GRAVITY = -5.0; const ARROW_RANGE = 50.0; const ARROW_INITIAL_UP_VELOCITY = 1.0; const ARROW_DAMAGE = 10; const FIREBALL_SPEED = 25.0; const FIREBALL_RANGE = 100.0; const FIREBALL_SIZE = 0.2; const FIREBALL_DAMAGE = 15; const Q_COOLDOWN = 500; const E_COOLDOWN = 1000; const PROJECTILE_HIT_RADIUS_APPROX = 0.3;
+const MELEE_ATTACK_DURATION = 250; const MELEE_COOLDOWN = 400; const MELEE_DAMAGE = 25; const MELEE_RANGE = 2.5;
+const MELEE_ANGLE_THRESHOLD = Math.PI / 2.5;
+const FIST_SIZE_X = 0.4; const FIST_SIZE_Y = 0.4; const FIST_SIZE_Z = 0.4;
+const DUMMY_RADIUS = 0.5; const DUMMY_HEIGHT = 1.8; const DUMMY_MAX_HEALTH = 200; const DUMMY_HIT_DURATION = 150; const DUMMY_ORIGINAL_COLOR = 0xdeb887; const DUMMY_HIT_COLOR = 0xffffff; const DUMMY_GRAVITY = GRAVITY * 0.9; const DUMMY_LINEAR_DRAG = 1.0; const KNOCKBACK_FORCE_MULTIPLIER = 0.3; const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2;
+const PLAYER_HIT_RADIUS_APPROX = 0.7;
+const PLAYER_KNOCKBACK_FORCE_MULTIPLIER = 0.4;
+const PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER = 0.3;
+let dummyCurrentHealth = DUMMY_MAX_HEALTH; let dummyIsHit = false; let dummyHitTimer = 0; let dummyVelocity = new THREE.Vector3(); let dummyIsOnGround = true;
+let gamepad = null; let gamepadStatusElement;
+const GAMEPAD_AXIS_DEADZONE = 0.15; const GAMEPAD_LOOK_SENSITIVITY = 0.03;
+let player2JumpButtonPressedLastFrame = false;
+let gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false };
+let crosshairP1, crosshairP2; const keys = {};
+function init() {
+scene = new THREE.Scene(); scene.background = new THREE.Color(0x87ceeb); scene.fog = new THREE.Fog(0x87ceeb, 10, 60); const aspect = (window.innerWidth / 2) / window.innerHeight; cameraP1 = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000); cameraP2 = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000); renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.setScissorTest(true); document.body.appendChild(renderer.domElement);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight); const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); directionalLight.position.set(10, 15, 10); directionalLight.castShadow = true; directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50; directionalLight.shadow.camera.left = -25; directionalLight.shadow.camera.right = 25; directionalLight.shadow.camera.top = 25; directionalLight.shadow.camera.bottom = -25; scene.add(directionalLight); const groundGeometry = new THREE.PlaneGeometry(100, 100); const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, side: THREE.DoubleSide }); ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const pGeo = new THREE.BoxGeometry(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_DEPTH);
+player = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({ color: 0xff0000 })); player.castShadow = true; player.position.set(-3, PLAYER_HEIGHT / 2, 0); scene.add(player);
+const hatGeo = new THREE.BoxGeometry(HAT_WIDTH, HAT_HEIGHT, HAT_DEPTH);
+const hatMeshP1 = new THREE.Mesh(hatGeo, new THREE.MeshStandardMaterial({ color: 0x0000ff })); hatMeshP1.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; hatMeshP1.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; hatMeshP1.castShadow = true; player.add(hatMeshP1);
+fistMeshP1 = createFistMesh();
+if (fistMeshP1) { fistMeshP1.visible = false; fistMeshP1.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); player.add(fistMeshP1); } else { console.error("Failed to create fistMeshP1!"); }
+player2 = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({ color: 0x00ff00 })); player2.castShadow = true; player2.position.set(3, PLAYER_HEIGHT / 2, 0); scene.add(player2);
+player2Hat = new THREE.Mesh(hatGeo, new THREE.MeshStandardMaterial({ color: 0xffff00 })); player2Hat.position.y = PLAYER_HEIGHT / 2 + HAT_HEIGHT / 2; player2Hat.position.z = -PLAYER_DEPTH / 2 + HAT_DEPTH / 2 - 0.05; player2Hat.castShadow = true; player2.add(player2Hat);
+fistMeshP2 = createFistMesh();
+if (fistMeshP2) { fistMeshP2.visible = false; fistMeshP2.position.set(PLAYER_WIDTH * 0.3, 0, -PLAYER_DEPTH * 0.5 - FIST_SIZE_Z * 0.6); player2.add(fistMeshP2); } else { console.error("Failed to create fistMeshP2!"); }
+trainingDummy = createDummyMesh();
+if(trainingDummy) { trainingDummy.position.set(0, DUMMY_HEIGHT / 2, -8); scene.add(trainingDummy); } else { console.error("Failed to create trainingDummy!"); }
+createTrees(20);
+healthBarInnerElementP1 = document.getElementById('health-bar-inner-p1'); healthBarInnerElementP2 = document.getElementById('health-bar-inner-p2'); updateHealthBarP1(); updateHealthBarP2(); gamepadStatusElement = document.getElementById('gamepad-status'); crosshairP1 = document.getElementById('crosshair-p1'); crosshairP2 = document.getElementById('crosshair-p2');
+window.addEventListener('resize', onWindowResize, false); document.addEventListener('keydown', onKeyDown, false); document.addEventListener('keyup', (event) => { keys[event.code] = false; }); renderer.domElement.addEventListener('click', () => { if (!isPointerLocked) { renderer.domElement.requestPointerLock(); } }, false); document.addEventListener('mousedown', onMouseDown, false); document.addEventListener('pointerlockchange', onPointerLockChange, false); document.addEventListener('pointerlockerror', onPointerLockError, false); document.addEventListener('mousemove', onMouseMove, false); window.addEventListener("gamepadconnected", handleGamepadConnected); window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
+updateCrosshairVisibility(); updateGamepadStatusUI();
+}
+function createFistMesh() { const fistGeometry = new THREE.BoxGeometry(FIST_SIZE_X, FIST_SIZE_Y, FIST_SIZE_Z); const fistMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, roughness: 0.6, metalness: 0.3 }); const fist = new THREE.Mesh(fistGeometry, fistMaterial); fist.castShadow = true; return fist; }
+function createDummyMesh() { const dummyMaterial = new THREE.MeshStandardMaterial({ color: DUMMY_ORIGINAL_COLOR, roughness: 0.8 }); const dummyGeometry = new THREE.CylinderGeometry(DUMMY_RADIUS, DUMMY_RADIUS, DUMMY_HEIGHT, 16); const dummy = new THREE.Mesh(dummyGeometry, dummyMaterial); dummy.castShadow = true; dummy.receiveShadow = true; dummy.userData = { type: 'dummy', health: DUMMY_MAX_HEALTH }; return dummy; }
+function createArrowMesh() { const group=new THREE.Group(); const shaftGeo=new THREE.CylinderGeometry(.02,.02,.8*.8); const shaftMat=new THREE.MeshStandardMaterial({color:0x8B4513}); const shaft=new THREE.Mesh(shaftGeo,shaftMat); shaft.rotation.x=Math.PI/2; shaft.position.z=.8*.8/2; shaft.castShadow=true; group.add(shaft); const headGeo=new THREE.ConeGeometry(.05,.8*.2,8); const headMat=new THREE.MeshStandardMaterial({color:0xAAAAAA}); const head=new THREE.Mesh(headGeo,headMat); head.rotation.x=Math.PI/2; head.position.z=.8*.8+.8*.2/2; head.castShadow=true; group.add(head); return group; }
+function createFireballMesh() { return new THREE.Mesh(new THREE.SphereGeometry(FIREBALL_SIZE,16,8), new THREE.MeshBasicMaterial({color:0xffA500})); }
+function createTree(x,z){ const trunkH=Math.random()*2+1; const tree=new THREE.Group(); const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,trunkH), new THREE.MeshStandardMaterial({color:0x8B4513})); trunk.position.y=trunkH/2; trunk.castShadow=true; trunk.receiveShadow=true; tree.add(trunk); const foliage=new THREE.Mesh(new THREE.ConeGeometry(.8,1.5,8), new THREE.MeshStandardMaterial({color:0x006400})); foliage.position.y=trunkH+1.5/2-.2; foliage.castShadow=true; foliage.receiveShadow=true; tree.add(foliage); tree.position.set(x,0,z); scene.add(tree); return tree; }
+function createTrees(c){ const r=40; for(let i=0;i<c;i++){ let x,z; do{x=Math.random()*r-r/2; z=Math.random()*r-r/2;}while(Math.abs(x)<4&&Math.abs(z)<4); createTree(x,z);}}
+function dummyTakeDamage(amount, sourcePosition) { if (!trainingDummy || dummyCurrentHealth <= 0) return; dummyCurrentHealth -= amount; dummyCurrentHealth = Math.max(0, dummyCurrentHealth); if (sourcePosition) { const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER; dummyVelocity.x += horizontalImpulse.x; dummyVelocity.z += horizontalImpulse.z; dummyVelocity.y += verticalImpulse; dummyIsOnGround = false; } dummyIsHit = true; dummyHitTimer = DUMMY_HIT_DURATION; trainingDummy.material.color.setHex(DUMMY_HIT_COLOR); if (dummyCurrentHealth <= 0) { console.log("Training Dummy Destroyed!"); trainingDummy.material.color.setHex(0x555555); } }
+function player1TakeDamage(amount, sourcePosition) { if (currentHealthP1 <= 0) return; currentHealthP1 -= amount; currentHealthP1 = Math.max(0, currentHealthP1); console.log(`P1 Hit! Dmg: ${amount}, HP: ${currentHealthP1}`); updateHealthBarP1(); if (sourcePosition) { const knockbackDirection = player.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.multiplyScalar(amount * PLAYER_KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER; playerVelocity.x += horizontalImpulse.x; playerVelocity.z += horizontalImpulse.z; playerVelocity.y += verticalImpulse; playerOnGround = false; } if (currentHealthP1 <= 0) { console.log("Player 1 Defeated!"); } }
+function player2TakeDamage(amount, sourcePosition) { if (currentHealthP2 <= 0) return; currentHealthP2 -= amount; currentHealthP2 = Math.max(0, currentHealthP2); console.log(`P2 Hit! Dmg: ${amount}, HP: ${currentHealthP2}`); updateHealthBarP2(); if (sourcePosition) { const knockbackDirection = player2.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.multiplyScalar(amount * PLAYER_KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER; player2Velocity.x += horizontalImpulse.x; player2Velocity.z += horizontalImpulse.z; player2Velocity.y += verticalImpulse; player2OnGround = false; } if (currentHealthP2 <= 0) { console.log("Player 2 Defeated!"); } }
+function updateHealthBarP1() { updateHealthBarGeneric(healthBarInnerElementP1, currentHealthP1, MAX_HEALTH_P1); }
+function updateHealthBarP2() { updateHealthBarGeneric(healthBarInnerElementP2, currentHealthP2, MAX_HEALTH_P2); }
+function updateHealthBarGeneric(element, current, max) { if (!element) return; const percentage = (current / max) * 100; element.style.width = percentage + '%'; if (percentage < 30) { element.style.backgroundColor = '#f44336'; element.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; } else if (percentage < 60) { element.style.backgroundColor = '#ff9800'; element.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; } else { element.style.backgroundColor = '#4CAF50'; element.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; } }
+function updateGamepadStatusUI() { if (!gamepadStatusElement) return; if (gamepad) { gamepadStatusElement.textContent = `Gamepad: Connected (${gamepad.id.substring(0, 25)}...)`; gamepadStatusElement.style.color = '#90ee90'; } else { gamepadStatusElement.textContent = 'Gamepad: Not Connected'; gamepadStatusElement.style.color = '#ffcccb'; } }
+function updateCrosshairVisibility() { if (crosshairP1) crosshairP1.style.display = isPointerLocked ? 'block' : 'none'; if (crosshairP2) crosshairP2.style.display = gamepad ? 'block' : 'none'; }
+function onWindowResize() { renderer.setSize(window.innerWidth, window.innerHeight); }
+function onKeyDown(event) { keys[event.code] = true; const currentTime = performance.now(); if (event.code === 'KeyQ' && currentHealthP1 > 0) { if (currentTime > lastShotTimeQP1 + Q_COOLDOWN) { shootProjectileGeneric('arrow', cameraP1, 'P1'); lastShotTimeQP1 = currentTime; } } else if (event.code === 'KeyE' && currentHealthP1 > 0) { if (currentTime > lastShotTimeEP1 + E_COOLDOWN) { shootProjectileGeneric('fireball', cameraP1, 'P1'); lastShotTimeEP1 = currentTime; } } else if (event.code === 'Space' && currentHealthP1 > 0) { if (jumpsPerformed < MAX_JUMPS) { playerVelocity.y = JUMP_FORCE; playerOnGround = false; jumpsPerformed++; } } else if (event.code === 'KeyH') { player1TakeDamage(10, player.position.clone().add(new THREE.Vector3(0,0,1))); } else if (event.code === 'KeyJ') { player2TakeDamage(10, player2.position.clone().add(new THREE.Vector3(0,0,1))); } }
+function onMouseDown(event) { if (event.button === 0 && isPointerLocked && currentHealthP1 > 0) { const currentTime = performance.now(); if (!isMeleeAttackingP1 && currentTime > lastMeleeAttackTimeP1 + MELEE_COOLDOWN) { isMeleeAttackingP1 = true; meleeAttackTimerP1 = MELEE_ATTACK_DURATION; if(fistMeshP1) fistMeshP1.visible = true; lastMeleeAttackTimeP1 = currentTime; } } }
+function onPointerLockChange() { isPointerLocked = (document.pointerLockElement === renderer.domElement); updateCrosshairVisibility(); }
+function onPointerLockError() { console.error('Pointer Lock Error'); isPointerLocked = false; updateCrosshairVisibility(); }
+function onMouseMove(event) { if (!isPointerLocked) return; const dX=event.movementX||0; const dY=event.movementY||0; playerRotationY-=dX*MOUSE_SENSITIVITY; cameraRotationX-=dY*MOUSE_SENSITIVITY; cameraRotationX=Math.max(-PITCH_LIMIT,Math.min(PITCH_LIMIT,cameraRotationX)); }
+function handleGamepadConnected(event) { console.log("Gamepad connected:", event.gamepad.id); if (!gamepad) gamepad = event.gamepad; updateGamepadStatusUI(); updateCrosshairVisibility(); }
+function handleGamepadDisconnected(event) { console.log("Gamepad disconnected:", event.gamepad.id); if (gamepad && gamepad.index === event.gamepad.index) gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); }
+function shootProjectileGeneric(type, sourceCamera, ownerId) { if ( (ownerId === 'P1' && currentHealthP1 <= 0) || (ownerId === 'P2' && currentHealthP2 <= 0) ) return; let mesh, speed, range, initialVelocityBoostY = 0, damage = 0; if (type === 'arrow') { mesh = createArrowMesh(); speed = ARROW_SPEED; range = ARROW_RANGE; initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY; damage = ARROW_DAMAGE; } else if (type === 'fireball') { mesh = createFireballMesh(); speed = FIREBALL_SPEED; range = FIREBALL_RANGE; damage = FIREBALL_DAMAGE; } else { return; } if (!mesh) return; const direction = new THREE.Vector3(); sourceCamera.getWorldDirection(direction); const startPosition = new THREE.Vector3(); sourceCamera.getWorldPosition(startPosition); startPosition.add(direction.clone().multiplyScalar(1.0)); mesh.position.copy(startPosition); mesh.lookAt(mesh.position.clone().add(direction)); const velocity = direction.multiplyScalar(speed); velocity.y += initialVelocityBoostY; scene.add(mesh); projectiles.push({ mesh: mesh, velocity: velocity, type: type, range: range, origin: startPosition.clone(), damage: damage, owner: ownerId }); }
+const clock = new THREE.Clock();
+function animate() { requestAnimationFrame(animate); const deltaTime = clock.getDelta(); const deltaMillis = deltaTime * 1000; const currentTime = performance.now(); handleGamepadInput(); updatePlayerP1(deltaTime); updatePlayerP2(deltaTime); updateCameraP1(); updateCameraP2(); updateAttacksP1(currentTime, deltaMillis); updateAttacksP2(currentTime, deltaMillis); updateProjectiles(deltaTime); updateDummyState(deltaTime, deltaMillis); const screenWidth=window.innerWidth; const screenHeight=window.innerHeight; const halfWidth=Math.floor(screenWidth/2); renderer.setViewport(0,0,halfWidth,screenHeight); renderer.setScissor(0,0,halfWidth,screenHeight); cameraP1.aspect=halfWidth/screenHeight; cameraP1.updateProjectionMatrix(); renderer.render(scene,cameraP1); renderer.setViewport(halfWidth,0,screenWidth-halfWidth,screenHeight); renderer.setScissor(halfWidth,0,screenWidth-halfWidth,screenHeight); cameraP2.aspect=(screenWidth-halfWidth)/screenHeight; cameraP2.updateProjectionMatrix(); renderer.render(scene,cameraP2); }
+function updatePlayerP1(deltaTime) { if (currentHealthP1 <= 0) { playerVelocity.set(0, playerVelocity.y + GRAVITY * deltaTime, 0); player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; playerVelocity.y = 0; } return; } const moveDirection=new THREE.Vector3(); if(keys['KeyW'])moveDirection.z-=1; if(keys['KeyS'])moveDirection.z+=1; if(keys['KeyA'])moveDirection.x-=1; if(keys['KeyD'])moveDirection.x+=1; if(moveDirection.lengthSq()>0){moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0,1,0),playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED*deltaTime); player.position.add(moveDirection);} playerVelocity.y+=GRAVITY*deltaTime; player.position.y+=playerVelocity.y*deltaTime; if(player.position.y<=PLAYER_HEIGHT/2){player.position.y=PLAYER_HEIGHT/2; if(playerVelocity.y<=0){playerVelocity.y=0; if(!playerOnGround){jumpsPerformed=0;} playerOnGround=true;}}else{if(playerOnGround){if(jumpsPerformed===0)jumpsPerformed=1;} playerOnGround=false;} player.rotation.y=playerRotationY; }
+function updatePlayerP2(deltaTime) { if (currentHealthP2 <= 0) { player2Velocity.set(0, player2Velocity.y + GRAVITY * deltaTime, 0); player2.position.y += player2Velocity.y * deltaTime; if (player2.position.y <= PLAYER_HEIGHT / 2) { player2.position.y = PLAYER_HEIGHT / 2; player2Velocity.y = 0; } return; } if(!player2) return; const moveDirectionP2=new THREE.Vector3(gamepadInputState.moveX,0,gamepadInputState.moveZ); if(moveDirectionP2.lengthSq()>0){moveDirectionP2.normalize(); moveDirectionP2.applyAxisAngle(new THREE.Vector3(0,1,0),player2CameraYaw); moveDirectionP2.multiplyScalar(PLAYER_SPEED*deltaTime); player2.position.add(moveDirectionP2);} player2.rotation.y=player2CameraYaw; player2Velocity.y+=GRAVITY*deltaTime; player2.position.y+=player2Velocity.y*deltaTime; if(player2.position.y<=PLAYER_HEIGHT/2){player2.position.y=PLAYER_HEIGHT/2; if(player2Velocity.y<=0){player2Velocity.y=0; if(!player2OnGround){player2JumpsPerformed=0;} player2OnGround=true;}}else{if(player2OnGround){if(player2JumpsPerformed===0)player2JumpsPerformed=1;} player2OnGround=false;} if(gamepadInputState.jump && !player2JumpButtonPressedLastFrame){ if(player2JumpsPerformed < MAX_JUMPS){player2Velocity.y=JUMP_FORCE; player2OnGround=false; player2JumpsPerformed++;}} player2JumpButtonPressedLastFrame = gamepadInputState.jump; }
+function updateCameraP1() { if(!player) return; const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),cameraRotationX); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),playerRotationY); offset.applyQuaternion(qY.multiply(qX)); const target=player.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP1.position.copy(target).add(offset); if(cameraP1.position.y<MIN_CAMERA_HEIGHT)cameraP1.position.y=MIN_CAMERA_HEIGHT; cameraP1.lookAt(target); }
+function updateCameraP2() { if(!player2) return; const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),player2CameraPitch); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),player2CameraYaw); offset.applyQuaternion(qY.multiply(qX)); const target=player2.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP2.position.copy(target).add(offset); if(cameraP2.position.y<MIN_CAMERA_HEIGHT)cameraP2.position.y=MIN_CAMERA_HEIGHT; cameraP2.lookAt(target); }
+function handleGamepadInput() { if (!gamepad) { gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false }; return; } const currentGamepad = navigator.getGamepads()[gamepad.index]; if (!currentGamepad) { gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); return; } gamepad = currentGamepad; let mX = gamepad.axes[0] || 0; let mZ = gamepad.axes[1] || 0; let lX = gamepad.axes[2] || 0; let lY = gamepad.axes[3] || 0; if (Math.abs(mX) < GAMEPAD_AXIS_DEADZONE) mX = 0; if (Math.abs(mZ) < GAMEPAD_AXIS_DEADZONE) mZ = 0; if (Math.abs(lX) < GAMEPAD_AXIS_DEADZONE) lX = 0; if (Math.abs(lY) < GAMEPAD_AXIS_DEADZONE) lY = 0; const jump = gamepad.buttons[0]?.pressed || false; const melee = gamepad.buttons[5]?.pressed || false; const shootArrow = gamepad.buttons[2]?.pressed || false; const shootFireball = gamepad.buttons[3]?.pressed || false; player2CameraYaw -= lX * GAMEPAD_LOOK_SENSITIVITY; player2CameraPitch -= lY * GAMEPAD_LOOK_SENSITIVITY; player2CameraPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, player2CameraPitch)); gamepadInputState = { moveX: mX, moveZ: mZ, lookX: lX, lookY: lY, jump: jump, melee: melee, shootArrow: shootArrow, shootFireball: shootFireball }; }
+function updateAttacksP1(currentTime, deltaMillis) { if (isMeleeAttackingP1) { meleeAttackTimerP1 -= deltaMillis; if (player2 && currentHealthP2 > 0) { const distance = player.position.distanceTo(player2.position); if (distance < MELEE_RANGE) { const direction = new THREE.Vector3(); cameraP1.getWorldDirection(direction); const vectorToP2 = player2.position.clone().sub(player.position).normalize(); if (direction.angleTo(vectorToP2) < MELEE_ANGLE_THRESHOLD) { console.log("P1 Melee Hit P2!"); player2TakeDamage(MELEE_DAMAGE, player.position); meleeAttackTimerP1 = 0; } } } if (meleeAttackTimerP1 <= 0) { isMeleeAttackingP1 = false; if(fistMeshP1) fistMeshP1.visible = false; } } }
+function updateAttacksP2(currentTime, deltaMillis) { if (!player2 || currentHealthP2 <= 0) return; if (gamepadInputState.melee && !isMeleeAttackingP2 && currentTime > lastMeleeAttackTimeP2 + MELEE_COOLDOWN) { isMeleeAttackingP2 = true; meleeAttackTimerP2 = MELEE_ATTACK_DURATION; if(fistMeshP2) fistMeshP2.visible = true; lastMeleeAttackTimeP2 = currentTime; console.log("P2 Punch!"); } if (isMeleeAttackingP2) { meleeAttackTimerP2 -= deltaMillis; if (player && currentHealthP1 > 0) { const distance = player2.position.distanceTo(player.position); if (distance < MELEE_RANGE) { const direction = new THREE.Vector3(); cameraP2.getWorldDirection(direction); const vectorToP1 = player.position.clone().sub(player2.position).normalize(); if (direction.angleTo(vectorToP1) < MELEE_ANGLE_THRESHOLD) { console.log("P2 Melee Hit P1!"); player1TakeDamage(MELEE_DAMAGE, player2.position); meleeAttackTimerP2 = 0; } } } if (meleeAttackTimerP2 <= 0) { isMeleeAttackingP2 = false; if(fistMeshP2) fistMeshP2.visible = false; } } if (gamepadInputState.shootArrow && currentTime > lastShotTimeQP2 + Q_COOLDOWN) { console.log("P2 Arrow!"); shootProjectileGeneric('arrow', cameraP2, 'P2'); lastShotTimeQP2 = currentTime; } if (gamepadInputState.shootFireball && currentTime > lastShotTimeEP2 + E_COOLDOWN) { console.log("P2 Fireball!"); shootProjectileGeneric('fireball', cameraP2, 'P2'); lastShotTimeEP2 = currentTime; } }
+function updateProjectiles(deltaTime) { for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; let projectileRemoved = false; if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; } p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime)); if (p.type === 'arrow' && p.velocity.lengthSq() > 0.001) { p.mesh.lookAt(p.mesh.position.clone().add(p.velocity.clone().normalize())); } if (p.owner !== 'P1' && player && currentHealthP1 > 0) { const distanceToP1 = p.mesh.position.distanceTo(player.position); if (distanceToP1 < PLAYER_HIT_RADIUS_APPROX) { console.log(`Projectile from ${p.owner} hit P1!`); player1TakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (p.owner !== 'P2' && player2 && currentHealthP2 > 0) { const distanceToP2 = p.mesh.position.distanceTo(player2.position); if (distanceToP2 < PLAYER_HIT_RADIUS_APPROX) { console.log(`Projectile from ${p.owner} hit P2!`); player2TakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved && trainingDummy && dummyCurrentHealth > 0) { const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position); if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) { dummyTakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved) { const distanceFromOrigin = p.mesh.position.distanceTo(p.origin); if (distanceFromOrigin > p.range) { scene.remove(p.mesh); projectiles.splice(i, 1); } } } }
+function updateDummyState(deltaTime, deltaMillis) { if (!trainingDummy) return; if (!dummyIsOnGround) { dummyVelocity.y += DUMMY_GRAVITY * deltaTime; } const dragFactor = 1.0 - DUMMY_LINEAR_DRAG * deltaTime; if (dragFactor > 0) { dummyVelocity.x *= dragFactor; dummyVelocity.z *= dragFactor; } else { dummyVelocity.x = 0; dummyVelocity.z = 0; } if (dummyCurrentHealth > 0 || !dummyIsOnGround) { trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime)); } if (trainingDummy.position.y <= DUMMY_HEIGHT / 2) { trainingDummy.position.y = DUMMY_HEIGHT / 2; if (dummyVelocity.y < 0) { dummyVelocity.y = 0; dummyIsOnGround = true; } } else { dummyIsOnGround = false; } if (dummyIsHit) { dummyHitTimer -= deltaMillis; if (dummyHitTimer <= 0) { dummyIsHit = false; dummyHitTimer = 0; if (dummyCurrentHealth > 0) { trainingDummy.material.color.setHex(DUMMY_ORIGINAL_COLOR); } } } }
+window.onload = function() { init(); animate(); }
+</script>
 </body>
 </html>
