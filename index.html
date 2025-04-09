@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Basic 3D RPG - Split Screen PvP Compact</title>
+<title>Basic 3D RPG - Split Screen PvP Compact True Knockback</title>
 <style>
 body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
 canvas { display: block; }
@@ -52,7 +52,7 @@ const MELEE_ANGLE_THRESHOLD = Math.PI / 2.5;
 const FIST_SIZE_X = 0.4; const FIST_SIZE_Y = 0.4; const FIST_SIZE_Z = 0.4;
 const DUMMY_RADIUS = 0.5; const DUMMY_HEIGHT = 1.8; const DUMMY_MAX_HEALTH = 200; const DUMMY_HIT_DURATION = 150; const DUMMY_ORIGINAL_COLOR = 0xdeb887; const DUMMY_HIT_COLOR = 0xffffff; const DUMMY_GRAVITY = GRAVITY * 0.9; const DUMMY_LINEAR_DRAG = 1.0; const KNOCKBACK_FORCE_MULTIPLIER = 0.3; const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2;
 const PLAYER_HIT_RADIUS_APPROX = 0.7;
-const PLAYER_KNOCKBACK_FORCE_MULTIPLIER = 0.4;
+const PLAYER_KNOCKBACK_FORCE_MULTIPLIER = 3.2; // Increased from 3.0 to match dummy knockback style
 const PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER = 0.3;
 let dummyCurrentHealth = DUMMY_MAX_HEALTH; let dummyIsHit = false; let dummyHitTimer = 0; let dummyVelocity = new THREE.Vector3(); let dummyIsOnGround = true;
 let gamepad = null; let gamepadStatusElement;
@@ -87,8 +87,43 @@ function createFireballMesh() { return new THREE.Mesh(new THREE.SphereGeometry(F
 function createTree(x,z){ const trunkH=Math.random()*2+1; const tree=new THREE.Group(); const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,trunkH), new THREE.MeshStandardMaterial({color:0x8B4513})); trunk.position.y=trunkH/2; trunk.castShadow=true; trunk.receiveShadow=true; tree.add(trunk); const foliage=new THREE.Mesh(new THREE.ConeGeometry(.8,1.5,8), new THREE.MeshStandardMaterial({color:0x006400})); foliage.position.y=trunkH+1.5/2-.2; foliage.castShadow=true; foliage.receiveShadow=true; tree.add(foliage); tree.position.set(x,0,z); scene.add(tree); return tree; }
 function createTrees(c){ const r=40; for(let i=0;i<c;i++){ let x,z; do{x=Math.random()*r-r/2; z=Math.random()*r-r/2;}while(Math.abs(x)<4&&Math.abs(z)<4); createTree(x,z);}}
 function dummyTakeDamage(amount, sourcePosition) { if (!trainingDummy || dummyCurrentHealth <= 0) return; dummyCurrentHealth -= amount; dummyCurrentHealth = Math.max(0, dummyCurrentHealth); if (sourcePosition) { const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER; dummyVelocity.x += horizontalImpulse.x; dummyVelocity.z += horizontalImpulse.z; dummyVelocity.y += verticalImpulse; dummyIsOnGround = false; } dummyIsHit = true; dummyHitTimer = DUMMY_HIT_DURATION; trainingDummy.material.color.setHex(DUMMY_HIT_COLOR); if (dummyCurrentHealth <= 0) { console.log("Training Dummy Destroyed!"); trainingDummy.material.color.setHex(0x555555); } }
-function player1TakeDamage(amount, sourcePosition) { if (currentHealthP1 <= 0) return; currentHealthP1 -= amount; currentHealthP1 = Math.max(0, currentHealthP1); console.log(`P1 Hit! Dmg: ${amount}, HP: ${currentHealthP1}`); updateHealthBarP1(); if (sourcePosition) { const knockbackDirection = player.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.multiplyScalar(amount * PLAYER_KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER; playerVelocity.x += horizontalImpulse.x; playerVelocity.z += horizontalImpulse.z; playerVelocity.y += verticalImpulse; playerOnGround = false; } if (currentHealthP1 <= 0) { console.log("Player 1 Defeated!"); } }
-function player2TakeDamage(amount, sourcePosition) { if (currentHealthP2 <= 0) return; currentHealthP2 -= amount; currentHealthP2 = Math.max(0, currentHealthP2); console.log(`P2 Hit! Dmg: ${amount}, HP: ${currentHealthP2}`); updateHealthBarP2(); if (sourcePosition) { const knockbackDirection = player2.position.clone().sub(sourcePosition).normalize(); const horizontalImpulse = knockbackDirection.multiplyScalar(amount * PLAYER_KNOCKBACK_FORCE_MULTIPLIER); const verticalImpulse = amount * PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER; player2Velocity.x += horizontalImpulse.x; player2Velocity.z += horizontalImpulse.z; player2Velocity.y += verticalImpulse; player2OnGround = false; } if (currentHealthP2 <= 0) { console.log("Player 2 Defeated!"); } }
+function player1TakeDamage(amount, sourcePosition) {
+    if (currentHealthP1 <= 0 || !player) return;
+    currentHealthP1 -= amount;
+    currentHealthP1 = Math.max(0, currentHealthP1);
+    console.log(`P1 Hit! Dmg: ${amount}, HP: ${currentHealthP1}`);
+    updateHealthBarP1();
+    if (sourcePosition) {
+        const knockbackDirection = player.position.clone().sub(sourcePosition).normalize();
+        // This matches the dummy's simple knockback calculation
+        const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * PLAYER_KNOCKBACK_FORCE_MULTIPLIER);
+        const verticalImpulse = amount * PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER;
+        playerVelocity.x += horizontalImpulse.x;
+        playerVelocity.z += horizontalImpulse.z;
+        playerVelocity.y += verticalImpulse;
+        playerOnGround = false;
+    }
+    if (currentHealthP1 <= 0) { console.log("Player 1 Defeated!"); }
+}
+
+function player2TakeDamage(amount, sourcePosition) {
+    if (currentHealthP2 <= 0 || !player2) return;
+    currentHealthP2 -= amount;
+    currentHealthP2 = Math.max(0, currentHealthP2);
+    console.log(`P2 Hit! Dmg: ${amount}, HP: ${currentHealthP2}`);
+    updateHealthBarP2();
+    if (sourcePosition) {
+        const knockbackDirection = player2.position.clone().sub(sourcePosition).normalize();
+        // This matches the dummy's simple knockback calculation
+        const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * PLAYER_KNOCKBACK_FORCE_MULTIPLIER);
+        const verticalImpulse = amount * PLAYER_KNOCKBACK_VERTICAL_MULTIPLIER;
+        player2Velocity.x += horizontalImpulse.x;
+        player2Velocity.z += horizontalImpulse.z;
+        player2Velocity.y += verticalImpulse;
+        player2OnGround = false;
+    }
+    if (currentHealthP2 <= 0) { console.log("Player 2 Defeated!"); }
+}
 function updateHealthBarP1() { updateHealthBarGeneric(healthBarInnerElementP1, currentHealthP1, MAX_HEALTH_P1); }
 function updateHealthBarP2() { updateHealthBarGeneric(healthBarInnerElementP2, currentHealthP2, MAX_HEALTH_P2); }
 function updateHealthBarGeneric(element, current, max) { if (!element) return; const percentage = (current / max) * 100; element.style.width = percentage + '%'; if (percentage < 30) { element.style.backgroundColor = '#f44336'; element.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.7)'; } else if (percentage < 60) { element.style.backgroundColor = '#ff9800'; element.style.boxShadow = '0 0 5px rgba(255, 152, 0, 0.7)'; } else { element.style.backgroundColor = '#4CAF50'; element.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.7)'; } }
@@ -105,13 +140,101 @@ function handleGamepadDisconnected(event) { console.log("Gamepad disconnected:",
 function shootProjectileGeneric(type, sourceCamera, ownerId) { if ( (ownerId === 'P1' && currentHealthP1 <= 0) || (ownerId === 'P2' && currentHealthP2 <= 0) ) return; let mesh, speed, range, initialVelocityBoostY = 0, damage = 0; if (type === 'arrow') { mesh = createArrowMesh(); speed = ARROW_SPEED; range = ARROW_RANGE; initialVelocityBoostY = ARROW_INITIAL_UP_VELOCITY; damage = ARROW_DAMAGE; } else if (type === 'fireball') { mesh = createFireballMesh(); speed = FIREBALL_SPEED; range = FIREBALL_RANGE; damage = FIREBALL_DAMAGE; } else { return; } if (!mesh) return; const direction = new THREE.Vector3(); sourceCamera.getWorldDirection(direction); const startPosition = new THREE.Vector3(); sourceCamera.getWorldPosition(startPosition); startPosition.add(direction.clone().multiplyScalar(1.0)); mesh.position.copy(startPosition); mesh.lookAt(mesh.position.clone().add(direction)); const velocity = direction.multiplyScalar(speed); velocity.y += initialVelocityBoostY; scene.add(mesh); projectiles.push({ mesh: mesh, velocity: velocity, type: type, range: range, origin: startPosition.clone(), damage: damage, owner: ownerId }); }
 const clock = new THREE.Clock();
 function animate() { requestAnimationFrame(animate); const deltaTime = clock.getDelta(); const deltaMillis = deltaTime * 1000; const currentTime = performance.now(); handleGamepadInput(); updatePlayerP1(deltaTime); updatePlayerP2(deltaTime); updateCameraP1(); updateCameraP2(); updateAttacksP1(currentTime, deltaMillis); updateAttacksP2(currentTime, deltaMillis); updateProjectiles(deltaTime); updateDummyState(deltaTime, deltaMillis); const screenWidth=window.innerWidth; const screenHeight=window.innerHeight; const halfWidth=Math.floor(screenWidth/2); renderer.setViewport(0,0,halfWidth,screenHeight); renderer.setScissor(0,0,halfWidth,screenHeight); cameraP1.aspect=halfWidth/screenHeight; cameraP1.updateProjectionMatrix(); renderer.render(scene,cameraP1); renderer.setViewport(halfWidth,0,screenWidth-halfWidth,screenHeight); renderer.setScissor(halfWidth,0,screenWidth-halfWidth,screenHeight); cameraP2.aspect=(screenWidth-halfWidth)/screenHeight; cameraP2.updateProjectionMatrix(); renderer.render(scene,cameraP2); }
-function updatePlayerP1(deltaTime) { if (currentHealthP1 <= 0) { playerVelocity.set(0, playerVelocity.y + GRAVITY * deltaTime, 0); player.position.y += playerVelocity.y * deltaTime; if (player.position.y <= PLAYER_HEIGHT / 2) { player.position.y = PLAYER_HEIGHT / 2; playerVelocity.y = 0; } return; } const moveDirection=new THREE.Vector3(); if(keys['KeyW'])moveDirection.z-=1; if(keys['KeyS'])moveDirection.z+=1; if(keys['KeyA'])moveDirection.x-=1; if(keys['KeyD'])moveDirection.x+=1; if(moveDirection.lengthSq()>0){moveDirection.normalize(); moveDirection.applyAxisAngle(new THREE.Vector3(0,1,0),playerRotationY); moveDirection.multiplyScalar(PLAYER_SPEED*deltaTime); player.position.add(moveDirection);} playerVelocity.y+=GRAVITY*deltaTime; player.position.y+=playerVelocity.y*deltaTime; if(player.position.y<=PLAYER_HEIGHT/2){player.position.y=PLAYER_HEIGHT/2; if(playerVelocity.y<=0){playerVelocity.y=0; if(!playerOnGround){jumpsPerformed=0;} playerOnGround=true;}}else{if(playerOnGround){if(jumpsPerformed===0)jumpsPerformed=1;} playerOnGround=false;} player.rotation.y=playerRotationY; }
-function updatePlayerP2(deltaTime) { if (currentHealthP2 <= 0) { player2Velocity.set(0, player2Velocity.y + GRAVITY * deltaTime, 0); player2.position.y += player2Velocity.y * deltaTime; if (player2.position.y <= PLAYER_HEIGHT / 2) { player2.position.y = PLAYER_HEIGHT / 2; player2Velocity.y = 0; } return; } if(!player2) return; const moveDirectionP2=new THREE.Vector3(gamepadInputState.moveX,0,gamepadInputState.moveZ); if(moveDirectionP2.lengthSq()>0){moveDirectionP2.normalize(); moveDirectionP2.applyAxisAngle(new THREE.Vector3(0,1,0),player2CameraYaw); moveDirectionP2.multiplyScalar(PLAYER_SPEED*deltaTime); player2.position.add(moveDirectionP2);} player2.rotation.y=player2CameraYaw; player2Velocity.y+=GRAVITY*deltaTime; player2.position.y+=player2Velocity.y*deltaTime; if(player2.position.y<=PLAYER_HEIGHT/2){player2.position.y=PLAYER_HEIGHT/2; if(player2Velocity.y<=0){player2Velocity.y=0; if(!player2OnGround){player2JumpsPerformed=0;} player2OnGround=true;}}else{if(player2OnGround){if(player2JumpsPerformed===0)player2JumpsPerformed=1;} player2OnGround=false;} if(gamepadInputState.jump && !player2JumpButtonPressedLastFrame){ if(player2JumpsPerformed < MAX_JUMPS){player2Velocity.y=JUMP_FORCE; player2OnGround=false; player2JumpsPerformed++;}} player2JumpButtonPressedLastFrame = gamepadInputState.jump; }
+function updatePlayerP1(deltaTime) { 
+    if (currentHealthP1 <= 0) { 
+        playerVelocity.set(0, playerVelocity.y + GRAVITY * deltaTime, 0); 
+        if(player) player.position.y += playerVelocity.y * deltaTime; 
+        if (player && player.position.y <= PLAYER_HEIGHT / 2) { 
+            player.position.y = PLAYER_HEIGHT / 2; 
+            playerVelocity.y = 0;         }         return;     } 
+        // Store current horizontal velocity components that might be from knockback
+    const currentKnockbackX = playerVelocity.x;
+    const currentKnockbackZ = playerVelocity.z;
+        // Apply movement from keys
+    const moveDirection = new THREE.Vector3();
+    if(keys['KeyW']) moveDirection.z -= 1; 
+    if(keys['KeyS']) moveDirection.z += 1; 
+    if(keys['KeyA']) moveDirection.x -= 1; 
+    if(keys['KeyD']) moveDirection.x += 1;  
+    if(moveDirection.lengthSq() > 0) {
+        moveDirection.normalize(); 
+        moveDirection.applyAxisAngle(new THREE.Vector3(0,1,0), playerRotationY); 
+        moveDirection.multiplyScalar(PLAYER_SPEED * deltaTime); 
+        if(player) player.position.add(moveDirection);    } 
+    // Apply knockback velocity separately from movement input
+    if(player) {
+        player.position.x += currentKnockbackX * deltaTime;
+        player.position.z += currentKnockbackZ * deltaTime;
+    }   
+    // Apply decay to knockback velocity
+    playerVelocity.x *= 0.9; // Decay horizontal knockback
+    playerVelocity.z *= 0.9; // Decay horizontal knockback
+    // Update vertical velocity (gravity)
+    playerVelocity.y += GRAVITY * deltaTime;
+    if(player) player.position.y += playerVelocity.y * deltaTime;
+    // Ground check
+    if(player && player.position.y <= PLAYER_HEIGHT/2) {
+        player.position.y = PLAYER_HEIGHT/2;
+        if(playerVelocity.y <= 0) {
+            playerVelocity.y = 0;
+            if(!playerOnGround) {  jumpsPerformed = 0;   }
+            playerOnGround = true;        }
+    } else {  if(playerOnGround) {            if(jumpsPerformed === 0) jumpsPerformed = 1;        }        playerOnGround = false;    }
+    if(player) player.rotation.y = playerRotationY;
+}
+
+function updatePlayerP2(deltaTime) { 
+    if (currentHealthP2 <= 0) { 
+        player2Velocity.set(0, player2Velocity.y + GRAVITY * deltaTime, 0); 
+        if(player2) player2.position.y += player2Velocity.y * deltaTime; 
+        if (player2 && player2.position.y <= PLAYER_HEIGHT / 2) { 
+            player2.position.y = PLAYER_HEIGHT / 2; 
+            player2Velocity.y = 0;         } 
+        return;     } 
+        if(!player2) return;
+        // Store current horizontal velocity components that might be from knockback
+    const currentKnockbackX = player2Velocity.x;
+    const currentKnockbackZ = player2Velocity.z;
+        // Apply movement from gamepad
+    const moveDirectionP2 = new THREE.Vector3(gamepadInputState.moveX, 0, gamepadInputState.moveZ);
+    if(moveDirectionP2.lengthSq() > 0) {
+        moveDirectionP2.normalize(); 
+        moveDirectionP2.applyAxisAngle(new THREE.Vector3(0,1,0), player2CameraYaw); 
+        moveDirectionP2.multiplyScalar(PLAYER_SPEED * deltaTime); 
+        player2.position.add(moveDirectionP2);    }
+        // Apply knockback velocity separately
+    player2.position.x += currentKnockbackX * deltaTime;
+    player2.position.z += currentKnockbackZ * deltaTime;
+        // Apply decay to knockback velocity
+    player2Velocity.x *= 0.9; // Decay horizontal knockback
+    player2Velocity.z *= 0.9; // Decay horizontal knockback
+        player2.rotation.y = player2CameraYaw;
+        // Update vertical velocity (gravity)
+    player2Velocity.y += GRAVITY * deltaTime;
+    player2.position.y += player2Velocity.y * deltaTime;
+    // Ground check
+    if(player2.position.y <= PLAYER_HEIGHT/2) {
+        player2.position.y = PLAYER_HEIGHT/2;
+        if(player2Velocity.y <= 0) {
+            player2Velocity.y = 0;
+            if(!player2OnGround) {
+                player2JumpsPerformed = 0;            }
+            player2OnGround = true;        }
+    } else {        if(player2OnGround) {            if(player2JumpsPerformed === 0) player2JumpsPerformed = 1;        }        player2OnGround = false;    }
+
+    // Handle jump
+    if(gamepadInputState.jump && !player2JumpButtonPressedLastFrame) { 
+        if(player2JumpsPerformed < MAX_JUMPS) {
+            player2Velocity.y = JUMP_FORCE; 
+            player2OnGround = false; 
+            player2JumpsPerformed++;        }
+    } 
+    player2JumpButtonPressedLastFrame = gamepadInputState.jump;}
 function updateCameraP1() { if(!player) return; const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),cameraRotationX); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),playerRotationY); offset.applyQuaternion(qY.multiply(qX)); const target=player.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP1.position.copy(target).add(offset); if(cameraP1.position.y<MIN_CAMERA_HEIGHT)cameraP1.position.y=MIN_CAMERA_HEIGHT; cameraP1.lookAt(target); }
 function updateCameraP2() { if(!player2) return; const offset=new THREE.Vector3(0,0,CAMERA_DISTANCE); const qX=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),player2CameraPitch); const qY=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),player2CameraYaw); offset.applyQuaternion(qY.multiply(qX)); const target=player2.position.clone().add(new THREE.Vector3(0,CAMERA_HEIGHT_OFFSET,0)); cameraP2.position.copy(target).add(offset); if(cameraP2.position.y<MIN_CAMERA_HEIGHT)cameraP2.position.y=MIN_CAMERA_HEIGHT; cameraP2.lookAt(target); }
 function handleGamepadInput() { if (!gamepad) { gamepadInputState = { moveX: 0, moveZ: 0, lookX: 0, lookY: 0, jump: false, melee: false, shootArrow: false, shootFireball: false }; return; } const currentGamepad = navigator.getGamepads()[gamepad.index]; if (!currentGamepad) { gamepad = null; updateGamepadStatusUI(); updateCrosshairVisibility(); return; } gamepad = currentGamepad; let mX = gamepad.axes[0] || 0; let mZ = gamepad.axes[1] || 0; let lX = gamepad.axes[2] || 0; let lY = gamepad.axes[3] || 0; if (Math.abs(mX) < GAMEPAD_AXIS_DEADZONE) mX = 0; if (Math.abs(mZ) < GAMEPAD_AXIS_DEADZONE) mZ = 0; if (Math.abs(lX) < GAMEPAD_AXIS_DEADZONE) lX = 0; if (Math.abs(lY) < GAMEPAD_AXIS_DEADZONE) lY = 0; const jump = gamepad.buttons[0]?.pressed || false; const melee = gamepad.buttons[5]?.pressed || false; const shootArrow = gamepad.buttons[2]?.pressed || false; const shootFireball = gamepad.buttons[3]?.pressed || false; player2CameraYaw -= lX * GAMEPAD_LOOK_SENSITIVITY; player2CameraPitch -= lY * GAMEPAD_LOOK_SENSITIVITY; player2CameraPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, player2CameraPitch)); gamepadInputState = { moveX: mX, moveZ: mZ, lookX: lX, lookY: lY, jump: jump, melee: melee, shootArrow: shootArrow, shootFireball: shootFireball }; }
-function updateAttacksP1(currentTime, deltaMillis) { if (isMeleeAttackingP1) { meleeAttackTimerP1 -= deltaMillis; if (player2 && currentHealthP2 > 0) { const distance = player.position.distanceTo(player2.position); if (distance < MELEE_RANGE) { const direction = new THREE.Vector3(); cameraP1.getWorldDirection(direction); const vectorToP2 = player2.position.clone().sub(player.position).normalize(); if (direction.angleTo(vectorToP2) < MELEE_ANGLE_THRESHOLD) { console.log("P1 Melee Hit P2!"); player2TakeDamage(MELEE_DAMAGE, player.position); meleeAttackTimerP1 = 0; } } } if (meleeAttackTimerP1 <= 0) { isMeleeAttackingP1 = false; if(fistMeshP1) fistMeshP1.visible = false; } } }
-function updateAttacksP2(currentTime, deltaMillis) { if (!player2 || currentHealthP2 <= 0) return; if (gamepadInputState.melee && !isMeleeAttackingP2 && currentTime > lastMeleeAttackTimeP2 + MELEE_COOLDOWN) { isMeleeAttackingP2 = true; meleeAttackTimerP2 = MELEE_ATTACK_DURATION; if(fistMeshP2) fistMeshP2.visible = true; lastMeleeAttackTimeP2 = currentTime; console.log("P2 Punch!"); } if (isMeleeAttackingP2) { meleeAttackTimerP2 -= deltaMillis; if (player && currentHealthP1 > 0) { const distance = player2.position.distanceTo(player.position); if (distance < MELEE_RANGE) { const direction = new THREE.Vector3(); cameraP2.getWorldDirection(direction); const vectorToP1 = player.position.clone().sub(player2.position).normalize(); if (direction.angleTo(vectorToP1) < MELEE_ANGLE_THRESHOLD) { console.log("P2 Melee Hit P1!"); player1TakeDamage(MELEE_DAMAGE, player2.position); meleeAttackTimerP2 = 0; } } } if (meleeAttackTimerP2 <= 0) { isMeleeAttackingP2 = false; if(fistMeshP2) fistMeshP2.visible = false; } } if (gamepadInputState.shootArrow && currentTime > lastShotTimeQP2 + Q_COOLDOWN) { console.log("P2 Arrow!"); shootProjectileGeneric('arrow', cameraP2, 'P2'); lastShotTimeQP2 = currentTime; } if (gamepadInputState.shootFireball && currentTime > lastShotTimeEP2 + E_COOLDOWN) { console.log("P2 Fireball!"); shootProjectileGeneric('fireball', cameraP2, 'P2'); lastShotTimeEP2 = currentTime; } }
+function updateAttacksP1(currentTime, deltaMillis) { if (isMeleeAttackingP1) { meleeAttackTimerP1 -= deltaMillis; if (player && player2 && currentHealthP2 > 0) { const distance = player.position.distanceTo(player2.position); if (distance < MELEE_RANGE) { const direction = new THREE.Vector3(); cameraP1.getWorldDirection(direction); const vectorToP2 = player2.position.clone().sub(player.position).normalize(); if (direction.angleTo(vectorToP2) < MELEE_ANGLE_THRESHOLD) { console.log("P1 Melee Hit P2!"); player2TakeDamage(MELEE_DAMAGE, player.position); meleeAttackTimerP1 = 0; } } } if (meleeAttackTimerP1 <= 0) { isMeleeAttackingP1 = false; if(fistMeshP1) fistMeshP1.visible = false; } } }
+function updateAttacksP2(currentTime, deltaMillis) { if (!player2 || currentHealthP2 <= 0) return; if (gamepadInputState.melee && !isMeleeAttackingP2 && currentTime > lastMeleeAttackTimeP2 + MELEE_COOLDOWN) { isMeleeAttackingP2 = true; meleeAttackTimerP2 = MELEE_ATTACK_DURATION; if(fistMeshP2) fistMeshP2.visible = true; lastMeleeAttackTimeP2 = currentTime; console.log("P2 Punch!"); } if (isMeleeAttackingP2) { meleeAttackTimerP2 -= deltaMillis; if (player && player2 && currentHealthP1 > 0) { const distance = player2.position.distanceTo(player.position); if (distance < MELEE_RANGE) { const direction = new THREE.Vector3(); cameraP2.getWorldDirection(direction); const vectorToP1 = player.position.clone().sub(player2.position).normalize(); if (direction.angleTo(vectorToP1) < MELEE_ANGLE_THRESHOLD) { console.log("P2 Melee Hit P1!"); player1TakeDamage(MELEE_DAMAGE, player2.position); meleeAttackTimerP2 = 0; } } } if (meleeAttackTimerP2 <= 0) { isMeleeAttackingP2 = false; if(fistMeshP2) fistMeshP2.visible = false; } } if (gamepadInputState.shootArrow && currentTime > lastShotTimeQP2 + Q_COOLDOWN) { console.log("P2 Arrow!"); shootProjectileGeneric('arrow', cameraP2, 'P2'); lastShotTimeQP2 = currentTime; } if (gamepadInputState.shootFireball && currentTime > lastShotTimeEP2 + E_COOLDOWN) { console.log("P2 Fireball!"); shootProjectileGeneric('fireball', cameraP2, 'P2'); lastShotTimeEP2 = currentTime; } }
 function updateProjectiles(deltaTime) { for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; let projectileRemoved = false; if (p.type === 'arrow') { p.velocity.y += ARROW_GRAVITY * deltaTime; } p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime)); if (p.type === 'arrow' && p.velocity.lengthSq() > 0.001) { p.mesh.lookAt(p.mesh.position.clone().add(p.velocity.clone().normalize())); } if (p.owner !== 'P1' && player && currentHealthP1 > 0) { const distanceToP1 = p.mesh.position.distanceTo(player.position); if (distanceToP1 < PLAYER_HIT_RADIUS_APPROX) { console.log(`Projectile from ${p.owner} hit P1!`); player1TakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (p.owner !== 'P2' && player2 && currentHealthP2 > 0) { const distanceToP2 = p.mesh.position.distanceTo(player2.position); if (distanceToP2 < PLAYER_HIT_RADIUS_APPROX) { console.log(`Projectile from ${p.owner} hit P2!`); player2TakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved && trainingDummy && dummyCurrentHealth > 0) { const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position); if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) { dummyTakeDamage(p.damage, p.mesh.position); scene.remove(p.mesh); projectiles.splice(i, 1); projectileRemoved = true; continue; } } if (!projectileRemoved) { const distanceFromOrigin = p.mesh.position.distanceTo(p.origin); if (distanceFromOrigin > p.range) { scene.remove(p.mesh); projectiles.splice(i, 1); } } } }
 function updateDummyState(deltaTime, deltaMillis) { if (!trainingDummy) return; if (!dummyIsOnGround) { dummyVelocity.y += DUMMY_GRAVITY * deltaTime; } const dragFactor = 1.0 - DUMMY_LINEAR_DRAG * deltaTime; if (dragFactor > 0) { dummyVelocity.x *= dragFactor; dummyVelocity.z *= dragFactor; } else { dummyVelocity.x = 0; dummyVelocity.z = 0; } if (dummyCurrentHealth > 0 || !dummyIsOnGround) { trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime)); } if (trainingDummy.position.y <= DUMMY_HEIGHT / 2) { trainingDummy.position.y = DUMMY_HEIGHT / 2; if (dummyVelocity.y < 0) { dummyVelocity.y = 0; dummyIsOnGround = true; } } else { dummyIsOnGround = false; } if (dummyIsHit) { dummyHitTimer -= deltaMillis; if (dummyHitTimer <= 0) { dummyIsHit = false; dummyHitTimer = 0; if (dummyCurrentHealth > 0) { trainingDummy.material.color.setHex(DUMMY_ORIGINAL_COLOR); } } } }
 window.onload = function() { init(); animate(); }
