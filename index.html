@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic 3D RPG - Knockback & Sword Position</title>
+    <title>Basic 3D RPG - Knockback Fix & Sword Position</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #333; color: #fff; }
         canvas { display: block; }
@@ -163,7 +163,7 @@
         const MELEE_ATTACK_DURATION = 250;
         const MELEE_COOLDOWN = 400;
         const MELEE_DAMAGE = 25;
-        const MELEE_RANGE = 1.8; // Slightly increased range to match bigger sword visual
+        const MELEE_RANGE = 1.8;
         const MELEE_ANGLE_THRESHOLD = Math.PI / 3;
         const SWORD_SCALE = 3.0;
         const SWORD_LENGTH = 0.8;
@@ -177,10 +177,10 @@
         const DUMMY_HIT_DURATION = 150;
         const DUMMY_ORIGINAL_COLOR = 0xdeb887;
         const DUMMY_HIT_COLOR = 0xffffff;
-        const DUMMY_GRAVITY = GRAVITY * 0.9; // Slightly less gravity than player
-        const DUMMY_LINEAR_DRAG = 2.5; // Friction/resistance factor
-        const KNOCKBACK_FORCE_MULTIPLIER = 0.15; // How much damage translates to force
-        const KNOCKBACK_VERTICAL_MULTIPLIER = 0.1; // How much damage translates to upward force
+        const DUMMY_GRAVITY = GRAVITY * 0.9;
+        const DUMMY_LINEAR_DRAG = 1.0; // MODIFIED: Reduced drag
+        const KNOCKBACK_FORCE_MULTIPLIER = 0.3; // MODIFIED: Increased knockback force
+        const KNOCKBACK_VERTICAL_MULTIPLIER = 0.2; // MODIFIED: Increased vertical knockback
 
         // --- Input State ---
         const keys = {};
@@ -197,8 +197,8 @@
         let dummyCurrentHealth = DUMMY_MAX_HEALTH;
         let dummyIsHit = false;
         let dummyHitTimer = 0;
-        let dummyVelocity = new THREE.Vector3(); // Dummy's current velocity
-        let dummyIsOnGround = true; // Dummy physics state
+        let dummyVelocity = new THREE.Vector3();
+        let dummyIsOnGround = true;
 
 
         // --- Initialization ---
@@ -250,7 +250,7 @@
             swordMesh.visible = false;
             // --- MODIFIED Sword Position ---
             // Position further forward relative to player
-            swordMesh.position.set(PLAYER_WIDTH * 0.4, 0.1, -1.3); // Moved further forward (Z)
+            swordMesh.position.set(PLAYER_WIDTH * 0.4, 0.1, -1.8); // Moved further forward (Z)
             swordMesh.rotation.set(0, -Math.PI / 12, Math.PI / 4);
             player.add(swordMesh);
 
@@ -277,7 +277,7 @@
             document.addEventListener('mousemove', onMouseMove, false);
         }
 
-        // --- Sword Creation Function (unchanged from previous version) ---
+        // --- Sword Creation Function (unchanged) ---
         function createSwordMesh() {
             const swordGroup = new THREE.Group();
             const baseSwordLength = SWORD_LENGTH; const baseSwordWidth = SWORD_WIDTH; const baseSwordThickness = SWORD_THICKNESS; const hiltRadius = baseSwordWidth * 0.6; const hiltLength = baseSwordWidth * 1.5;
@@ -329,16 +329,16 @@
             console.log(`Dummy Hit! Damage: ${amount}, Remaining Health: ${dummyCurrentHealth}`);
 
             // --- Apply Knockback ---
-            if (sourcePosition) { // Ensure source position is provided
+            if (sourcePosition) {
                 const knockbackDirection = trainingDummy.position.clone().sub(sourcePosition).normalize();
-                // Apply horizontal and vertical impulse based on damage
                 const horizontalImpulse = knockbackDirection.clone().multiplyScalar(amount * KNOCKBACK_FORCE_MULTIPLIER);
                 const verticalImpulse = amount * KNOCKBACK_VERTICAL_MULTIPLIER;
 
                 dummyVelocity.x += horizontalImpulse.x;
                 dummyVelocity.z += horizontalImpulse.z;
-                dummyVelocity.y += verticalImpulse; // Add upward force
-                dummyIsOnGround = false; // Knocked off ground
+                dummyVelocity.y += verticalImpulse;
+                dummyIsOnGround = false;
+                // console.log("Dummy Velocity after knockback:", dummyVelocity); // DEBUG LOG
             }
             // --- End Knockback ---
 
@@ -382,7 +382,7 @@
                             const vectorToDummy = trainingDummy.position.clone().sub(player.position).normalize();
                             const angle = playerForward.angleTo(vectorToDummy);
                             if (angle < MELEE_ANGLE_THRESHOLD) {
-                                // --- Pass player position as source for knockback ---
+                                // console.log("Melee Hit Registered! Applying Knockback..."); // DEBUG LOG
                                 dummyTakeDamage(MELEE_DAMAGE, player.position);
                             }
                         }
@@ -447,7 +447,6 @@
                 if (trainingDummy && dummyCurrentHealth > 0) {
                     const distanceToDummy = p.mesh.position.distanceTo(trainingDummy.position);
                     if (distanceToDummy < DUMMY_RADIUS + PROJECTILE_HIT_RADIUS_APPROX) {
-                        // --- Pass projectile position as source for knockback ---
                         dummyTakeDamage(p.damage, p.mesh.position);
                         scene.remove(p.mesh);
                         projectiles.splice(i, 1);
@@ -487,28 +486,34 @@
                 dummyVelocity.y += DUMMY_GRAVITY * deltaTime;
             }
 
-            // Apply Linear Drag/Friction (more stable than multiplicative)
+            // Apply Linear Drag/Friction
             const dragFactor = 1.0 - DUMMY_LINEAR_DRAG * deltaTime;
-            if (dragFactor > 0) { // Ensure drag doesn't reverse velocity
+            if (dragFactor > 0) {
                  dummyVelocity.x *= dragFactor;
                  dummyVelocity.z *= dragFactor;
-            } else { // If timestep is too large, just stop horizontal velocity
+            } else {
                  dummyVelocity.x = 0;
                  dummyVelocity.z = 0;
             }
 
-
             // Update Position based on velocity
-            trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime));
+            // Only apply velocity if dummy has health or is airborne (to prevent sliding after destruction)
+            if (dummyCurrentHealth > 0 || !dummyIsOnGround) {
+                 trainingDummy.position.add(dummyVelocity.clone().multiplyScalar(deltaTime));
+            }
+
 
             // Ground Collision Check
             if (trainingDummy.position.y <= DUMMY_HEIGHT / 2) {
                 trainingDummy.position.y = DUMMY_HEIGHT / 2;
-                dummyIsOnGround = true;
-                dummyVelocity.y = 0; // Stop vertical movement
-                // Optionally reduce horizontal velocity further on ground impact
-                // dummyVelocity.x *= 0.8;
-                // dummyVelocity.z *= 0.8;
+                // Only stop velocity and set ground state if it was moving downwards
+                if (dummyVelocity.y < 0) {
+                    dummyVelocity.y = 0;
+                    dummyIsOnGround = true;
+                }
+            } else {
+                // If dummy is above ground, it cannot be on the ground
+                dummyIsOnGround = false;
             }
 
              // Update Hit Feedback Timer
